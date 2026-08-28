@@ -1,0 +1,30 @@
+{
+  "name": "ha-ji-feng-mo-da-hong",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"node server/index.mjs\"",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/index.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "qa": "npm run build && node tests/visual-check.mjs",
+    "test:e2e": "npm run build && node tests/e2e-flows.mjs",
+    "test:freeze": "npm run build && node tests/freeze-regression.mjs",
+    "test:boss": "npm run build && node tests/boss-regression.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.0",
+    "playwright-core": "^1.62.1",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.4"
+  }
+}
