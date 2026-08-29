@@ -43,10 +43,10 @@ await page.click('[data-panel="warehouse"]');
 await page.waitForTimeout(200);
 const gridCheck = await page.evaluate(() => {
   const bag = document.querySelector(".bag-grid");
-  const warehouse = document.querySelector(".nine-col");
+  const warehouse = document.querySelector(".warehouse-grid");
   return {
     bagCells: document.querySelectorAll(".bag-grid .inventory-cell").length,
-    warehouseCells: document.querySelectorAll(".nine-col .inventory-cell").length,
+    warehouseCells: document.querySelectorAll(".warehouse-grid .inventory-cell").length,
     bagColumns: getComputedStyle(bag).gridTemplateColumns.split(" ").filter(Boolean).length,
     warehouseColumns: getComputedStyle(warehouse).gridTemplateColumns.split(" ").filter(Boolean).length,
   };

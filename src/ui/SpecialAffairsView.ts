@@ -1,5 +1,5 @@
 import { BUFFS, COLLECTIONS, WEAPONS, WEAPON_ORDER, WEAPON_UPGRADES } from "../../shared/balance";
-import { getDrawCost, getUpgradeCost, getWeaponConfig, getWeaponStats, sampleBuffCards } from "../../shared/calculations";
+import { getDrawCost, getEquippedWeight, getUpgradeCost, getWeaponConfig, getWeaponStats, sampleBuffCards } from "../../shared/calculations";
 import type { BuffId, RunState, WeaponInstance, WeaponKind, WeaponUpgradeKey } from "../../shared/types";
 import { store } from "../core/RunStore";
 import { SaveGateway } from "../core/SaveGateway";
@@ -74,6 +74,7 @@ export class SpecialAffairsView {
     const backpack = state.backpack.length;
     this.content.innerHTML = "";
     this.content.appendChild(el("h2", "panel-heading", "开始游戏"));
+    this.content.appendChild(this.renderWalletBar());
     const grid = el("div", "start-grid");
     grid.appendChild(this.infoCard("当前角色", "哈基蜂", `${state.level} 关 · ${state.clearedLevels} 次撤离`));
     grid.appendChild(this.infoCard("生命 / 护甲", `${Math.ceil(state.currentHp)} / ${Math.ceil(state.currentArmor)}`, `上限 ${state.maxHp} / ${state.maxArmor}`));
@@ -90,6 +91,19 @@ export class SpecialAffairsView {
     this.content.appendChild(start);
   }
 
+  private renderWalletBar(includeLoad = false): HTMLElement {
+    const state = store.getState();
+    const used = getEquippedWeight(state.ownedWeapons);
+    const bar = el("div", "affairs-wallet-bar");
+    const load = includeLoad
+      ? `<span class="wallet-load">枪械总重量 <b>${used.toFixed(1)} / ${state.loadCapacity}</b></span>`
+      : "";
+    bar.innerHTML = `<span class="wallet-coin">哈哈币 <b>${fmtCoin(state.coins)}</b></span>${load}`;
+    if (includeLoad && used > state.loadCapacity) {
+      bar.appendChild(el("div", "affairs-warning", "枪械总重量超过负重，无法继续装备，请先卸下部分武器"));
+    }
+    return bar;
+  }
   private infoCard(title: string, value: string, sub: string): HTMLElement {
     return el("div", "info-card", `<div class="info-label">${title}</div><div class="info-value">${value}</div><div class="info-sub">${sub}</div>`);
   }
@@ -98,89 +112,105 @@ export class SpecialAffairsView {
     const state = store.getState();
     this.content.innerHTML = "";
     this.content.appendChild(el("h2", "panel-heading", "仓库"));
+    this.content.appendChild(this.renderWalletBar());
     const layout = el("div", "warehouse-layout");
 
     const bag = el("div", "inventory-panel");
     bag.appendChild(el("h3", "inventory-title", `背包 · ${state.backpack.length} 件 / ${store.getBackpackUsed()}/${state.backpackCapacity}格`));
-    if (!state.backpack.length) {
-      bag.appendChild(el("div", "empty-note", "背包为空"));
-    } else {
-      const bagGrid = el("div", "inventory-grid bag-grid six-col");
-      state.backpack.forEach((item) => {
-        const info = store.getCollection(item.collectionId);
-        if (!info) return;
-        const cell = el("div", `inventory-cell ${rarityClass(info.rarity)}`);
-        cell.appendChild(imageEl(info.asset, "inventory-icon", info.name));
-        cell.appendChild(el("span", "inventory-name", info.name));
-        cell.appendChild(el("span", "inventory-meta", `${info.slots}格`));
-        const actions = el("div", "inventory-cell-actions");
-        const transfer = el("button", "small-button", "转移");
-        transfer.addEventListener("click", () => {
-          AudioManager.play("transfer");
-          store.transferItem(item.uid);
-          this.render();
-        });
-        const discard = el("button", "small-button danger", "丢弃");
-        discard.addEventListener("click", () => {
-          AudioManager.play("denied");
-          store.discardBackpack(item.uid);
-          this.render();
-        });
-        actions.append(transfer, discard);
-        cell.appendChild(actions);
-        bagGrid.appendChild(cell);
-      });
-      bag.appendChild(bagGrid);
-      const allButton = el("button", "primary-button slim-button", "一键全部转移到仓库");
-      allButton.addEventListener("click", () => {
+    const bagGrid = el("div", "inventory-grid bag-grid four-col");
+    const bagCellCount = Math.max(24, state.backpack.length);
+    for (let i = 0; i < bagCellCount; i++) {
+      const item = state.backpack[i];
+      if (!item) {
+        bagGrid.appendChild(this.emptyInventoryCell());
+        continue;
+      }
+      const info = store.getCollection(item.collectionId);
+      if (!info) continue;
+      const cell = el("div", `inventory-cell ${rarityClass(info.rarity)}`);
+      cell.appendChild(imageEl(info.asset, "inventory-icon", info.name));
+      cell.appendChild(el("span", "inventory-name", info.name));
+      cell.appendChild(el("span", "inventory-meta", `${info.slots}格`));
+      const actions = el("div", "inventory-cell-actions");
+      const transfer = el("button", "small-button", "转移");
+      transfer.addEventListener("click", () => {
         AudioManager.play("transfer");
-        store.transferAll();
+        store.transferItem(item.uid);
         this.render();
       });
-      bag.appendChild(allButton);
+      const discard = el("button", "small-button danger", "丢弃");
+      discard.addEventListener("click", () => {
+        AudioManager.play("denied");
+        store.discardBackpack(item.uid);
+        this.render();
+      });
+      actions.append(transfer, discard);
+      cell.appendChild(actions);
+      bagGrid.appendChild(cell);
     }
+    bag.appendChild(bagGrid);
+    const allButton = el("button", "primary-button slim-button", "一键全部转移到仓库");
+    allButton.addEventListener("click", () => {
+      AudioManager.play("transfer");
+      store.transferAll();
+      this.render();
+    });
+    bag.appendChild(allButton);
 
     const wh = el("div", "inventory-panel warehouse-panel");
     wh.appendChild(el("h3", "inventory-title", `仓库 · ${state.warehouse.length} 件（无限）`));
-    if (!state.warehouse.length) {
-      wh.appendChild(el("div", "empty-note", "仓库为空"));
-    } else {
-      const warehouseGrid = el("div", "inventory-grid warehouse-grid nine-col");
-      state.warehouse.forEach((item) => {
-        const info = store.getCollection(item.collectionId);
-        if (!info) return;
-        const cell = el("div", `inventory-cell ${rarityClass(info.rarity)}`);
-        cell.appendChild(imageEl(info.asset, "inventory-icon", info.name));
-        cell.appendChild(el("span", "inventory-name", info.name));
-        cell.appendChild(el("span", "inventory-meta", `${fmtCoin(info.price)}`));
-        const sell = el("button", "small-button gold inventory-cell-action", "出售");
-        sell.addEventListener("click", () => {
-          AudioManager.play("sell");
-          store.sellWarehouseItem(item.uid);
-          this.render();
-        });
-        cell.appendChild(sell);
-        warehouseGrid.appendChild(cell);
-      });
-      wh.appendChild(warehouseGrid);
-      const sellAll = el("button", "primary-button slim-button danger", "一键出售仓库全部藏品");
-      sellAll.addEventListener("click", () => {
+    const warehouseGrid = el("div", "inventory-grid warehouse-grid six-col");
+    const warehouseCellCount = Math.max(36, state.warehouse.length);
+    for (let i = 0; i < warehouseCellCount; i++) {
+      const item = state.warehouse[i];
+      if (!item) {
+        warehouseGrid.appendChild(this.emptyInventoryCell());
+        continue;
+      }
+      const info = store.getCollection(item.collectionId);
+      if (!info) continue;
+      const cell = el("div", `inventory-cell ${rarityClass(info.rarity)}`);
+      cell.appendChild(imageEl(info.asset, "inventory-icon", info.name));
+      cell.appendChild(el("span", "inventory-name", info.name));
+      cell.appendChild(el("span", "inventory-meta", `${fmtCoin(info.price)}`));
+      const sell = el("button", "small-button gold inventory-cell-action", "出售");
+      sell.addEventListener("click", () => {
         AudioManager.play("sell");
-        store.sellAllWarehouse();
+        store.sellWarehouseItem(item.uid);
         this.render();
       });
-      wh.appendChild(sellAll);
+      cell.appendChild(sell);
+      warehouseGrid.appendChild(cell);
     }
+    wh.appendChild(warehouseGrid);
+    const sellAll = el("button", "primary-button slim-button danger", "一键出售仓库全部藏品");
+    sellAll.addEventListener("click", () => {
+      AudioManager.play("sell");
+      store.sellAllWarehouse();
+      this.render();
+    });
+    wh.appendChild(sellAll);
+
     layout.append(bag, wh);
     this.content.appendChild(layout);
   }
 
+  private emptyInventoryCell(): HTMLElement {
+    const cell = el("div", "inventory-cell inventory-empty");
+    cell.appendChild(el("span", "inventory-placeholder", "空"));
+    return cell;
+  }
   private renderTrade(): void {
     const state = store.getState();
     this.content.innerHTML = "";
-    this.content.appendChild(el("h2", "panel-heading", `交易行 · 哈哈币 ${fmtCoin(state.coins)}`));
-    this.content.appendChild(el("h3", "section-title", "购买枪械"));
-    const buyGrid = el("div", "weapon-grid");
+    this.content.appendChild(el("h2", "panel-heading", "交易行"));
+    this.content.appendChild(this.renderWalletBar(true));
+    const layout = el("div", "trade-layout");
+
+    const buyColumn = el("div", "trade-column buy-column");
+    buyColumn.appendChild(el("h3", "section-title", "购买枪械"));
+    const buyScroll = el("div", "trade-scroll");
+    const buyGrid = el("div", "weapon-grid buy-grid");
     WEAPON_ORDER.forEach((kind) => {
       const config = WEAPONS[kind];
       const card = el("div", "weapon-card buy-card");
@@ -201,17 +231,21 @@ export class SpecialAffairsView {
       card.appendChild(button);
       buyGrid.appendChild(card);
     });
-    this.content.appendChild(buyGrid);
+    buyScroll.appendChild(buyGrid);
+    buyColumn.appendChild(buyScroll);
 
-    this.content.appendChild(el("h3", "section-title", "已购买枪械"));
-    const ownedList = el("div", "owned-list");
+    const ownedColumn = el("div", "trade-column owned-column");
+    ownedColumn.appendChild(el("h3", "section-title", "已购买枪械"));
+    const ownedList = el("div", "owned-list owned-scroll");
     if (!state.ownedWeapons.length) ownedList.appendChild(el("div", "empty-note", "尚未拥有枪械"));
     state.ownedWeapons.forEach((weapon) => {
       ownedList.appendChild(this.weaponInstanceCard(weapon, state));
     });
-    this.content.appendChild(ownedList);
-  }
+    ownedColumn.appendChild(ownedList);
 
+    layout.append(buyColumn, ownedColumn);
+    this.content.appendChild(layout);
+  }
   private weaponInstanceCard(weapon: WeaponInstance, state: RunState): HTMLElement {
     const config = getWeaponConfig(weapon.kind);
     const stats = store.weaponStats(weapon);
@@ -223,7 +257,7 @@ export class SpecialAffairsView {
       <div class="weapon-stats">${stats.range.toFixed(0)} 射程 · ${stats.fireRate.toFixed(2)}/s · ${stats.damage.toFixed(0)} 伤害 · ${stats.pellets} 弹 · ${stats.pierce} 贯穿 · ${config.weight} 重</div>
     `;
     const actions = el("div", "weapon-actions");
-    const equip = el("button", "small-button", weapon.equipped ? "卸下" : "装备");
+    const equip = el("button", "equip-button", weapon.equipped ? "卸下" : "装备");
     equip.addEventListener("click", () => {
       const ok = weapon.equipped ? store.unequipWeapon(weapon.id) : store.equipWeapon(weapon.id);
       AudioManager.play(ok ? "equip" : "denied");
@@ -274,6 +308,7 @@ export class SpecialAffairsView {
     const cost = getDrawCost(state.drawCountThisAffairs);
     this.content.innerHTML = "";
     this.content.appendChild(el("h2", "panel-heading", "幸运鸟窝"));
+    this.content.appendChild(this.renderWalletBar());
     this.content.appendChild(el("p", "panel-description", `本次特勤处已抽取 ${state.drawCountThisAffairs} 次 · 下次抽取 ${fmtCoin(cost)} 哈哈币`));
     const drawButton = el("button", "primary-button", `抽取 3 张 BUFF`);
     drawButton.disabled = state.coins < cost;
