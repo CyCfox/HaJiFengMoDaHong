@@ -20,13 +20,16 @@ describe("enemy composition", () => {
     expect(getEnemyComposition(5).some((x) => x.kind === "boss" && x.count === 1)).toBe(true);
   });
 
-  it("uses 0.01 floor and caps fire rate/speed", () => {
+  it("uses requested enemy multipliers without caps", () => {
     expect(getEnemyMultipliers(1)).toEqual({ hp: 1, damage: 1, fireRate: 1, moveSpeed: 1 });
     const mid = getEnemyMultipliers(11);
-    expect(mid.hp).toBeCloseTo(Math.floor(1.02 ** 10 * 100) / 100, 5);
+    expect(mid.hp).toBeCloseTo(Math.floor(1.1 ** 10 * 100) / 100, 5);
+    expect(mid.damage).toBeCloseTo(Math.floor((1 + 0.5 * Math.sqrt(10)) * 100) / 100, 5);
+    expect(mid.fireRate).toBeCloseTo(Math.floor((1 + 0.2 * Math.sqrt(10)) * 100) / 100, 5);
+    expect(mid.moveSpeed).toBeCloseTo(Math.floor((1 + 0.1 * Math.sqrt(10)) * 100) / 100, 5);
     const high = getEnemyMultipliers(500);
-    expect(high.fireRate).toBe(3);
-    expect(high.moveSpeed).toBe(2);
+    expect(high.fireRate).toBeGreaterThan(5);
+    expect(high.moveSpeed).toBeGreaterThan(3);
   });
 });
 

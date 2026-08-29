@@ -508,8 +508,9 @@ export class BattleScene extends Phaser.Scene {
           if (enemy.hp <= 0) this.killEnemy(enemy);
         }
         if (enemy.burnTimer <= 0) {
+          enemy.burnTimer = 0;
           enemy.burnStacks = 0;
-          enemy.burnImmuneTimer = 5;
+          enemy.burnImmuneTimer = 10;
         }
       }
       if (enemy.freezeImmuneTimer > 0) enemy.freezeImmuneTimer -= seconds;
@@ -517,13 +518,17 @@ export class BattleScene extends Phaser.Scene {
         enemy.freezeTimer -= seconds;
         enemy.speedMultiplier = Math.max(0, 1 - 0.2 * enemy.freezeStacks);
         if (enemy.freezeTimer <= 0) {
+          enemy.freezeTimer = 0;
           enemy.freezeStacks = 0;
-          enemy.freezeImmuneTimer = 5;
+          enemy.freezeImmuneTimer = 10;
           enemy.speedMultiplier = 1;
         }
       }
       if (enemy.stunTimer <= 0 && enemy.stunImmuneTimer > 0) enemy.stunImmuneTimer -= seconds;
-      if (enemy.stunTimer > 0 && enemy.stunTimer - seconds <= 0) enemy.stunImmuneTimer = 5;
+      if (enemy.stunTimer > 0 && enemy.stunTimer - seconds <= 0) {
+        enemy.stunTimer = 0;
+        enemy.stunImmuneTimer = 10;
+      }
       if (enemy.burnTimer > 0 && enemy.freezeTimer > 0) {
         if (enemy.burnStatusToken > enemy.freezeStatusToken) enemy.setTint(0xff3d3d);
         else enemy.setTint(0x6fb7ff);
@@ -540,14 +545,14 @@ export class BattleScene extends Phaser.Scene {
   private applyStatusToEnemy(enemy: Enemy): void {
     if (!enemy.active || enemy.hp <= 0) return;
     const bonus = getBuffBonus(store.getState().buffs);
-    if (bonus.burnStacks > 0 && enemy.burnImmuneTimer <= 0) {
-      enemy.burnStacks += bonus.burnStacks;
+    if (bonus.burnStacks > 0 && enemy.burnTimer <= 0 && enemy.burnImmuneTimer <= 0) {
+      enemy.burnStacks = bonus.burnStacks;
       enemy.burnTimer = 2;
-      enemy.burnTickTimer = Math.min(enemy.burnTickTimer, 0.5);
+      enemy.burnTickTimer = 0.5;
       enemy.burnStatusToken = ++this.statusColorToken;
     }
-    if (bonus.freezeStacks > 0 && enemy.freezeImmuneTimer <= 0) {
-      enemy.freezeStacks += bonus.freezeStacks;
+    if (bonus.freezeStacks > 0 && enemy.freezeTimer <= 0 && enemy.freezeImmuneTimer <= 0) {
+      enemy.freezeStacks = bonus.freezeStacks;
       enemy.freezeTimer = 5;
       enemy.freezeStatusToken = ++this.statusColorToken;
     }

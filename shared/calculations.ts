@@ -21,10 +21,11 @@ export function getEnemyComposition(level: number): Array<{ kind: string; count:
 }
 
 export function getEnemyMultipliers(level: number): { hp: number; damage: number; fireRate: number; moveSpeed: number } {
-  const hp = floor2(Math.pow(1.02, Math.max(0, level - 1)));
-  const damage = floor2(1 + 0.03 * Math.max(0, level - 1));
-  const fireRate = floor2(Math.min(3, 1 + 0.01 * Math.max(0, level - 1)));
-  const moveSpeed = floor2(Math.min(2, 1 + 0.01 * Math.max(0, level - 1)));
+  const n = Math.max(0, level - 1);
+  const hp = floor2(1.1 ** n);
+  const damage = floor2(1 + 0.5 * Math.sqrt(n));
+  const fireRate = floor2(1 + 0.2 * Math.sqrt(n));
+  const moveSpeed = floor2(1 + 0.1 * Math.sqrt(n));
   return { hp, damage, fireRate, moveSpeed };
 }
 

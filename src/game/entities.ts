@@ -139,12 +139,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.speed = this.baseSpeed;
     this.attackRange = config.range;
     this.damage = config.damage * multipliers.damage;
-    this.fireRate = Math.min(20, config.fireRate * multipliers.fireRate);
+    this.fireRate = config.fireRate * multipliers.fireRate;
     this.attackCooldown = 0.2 + Math.random() * 0.5;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setDepth(config.isBoss ? 30 : 15);
-    const targetWidth = config.isBoss ? 64 : config.kind === "flamer" ? 46 : config.kind === "shield" ? 46 : (config.kind === "rocket" || config.kind === "gunner") ? 44 : 34;
+    const targetWidth = config.isBoss ? 64 : config.kind === "flamer" ? 52 : config.kind === "shield" ? 46 : (config.kind === "rocket" || config.kind === "gunner") ? 50 : 34;
     const ratio = this.height / this.width;
     this.setDisplaySize(targetWidth, targetWidth * ratio);
     this.setOrigin(0.5, 0.82);

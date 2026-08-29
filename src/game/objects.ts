@@ -27,7 +27,7 @@ export class Loot extends Phaser.GameObjects.Image {
     this.pickupReadyAt = scene.time.now + pickupDelayMs;
     scene.add.existing(this);
     this.setDepth(8);
-    const lootWidth = 38;
+    const lootWidth = collection.id === "maiden_pendant" ? 30 : 38;
     const ratio = this.height / this.width;
     this.setDisplaySize(lootWidth, lootWidth * ratio);
     this.pulseScaleX = this.scaleX;
