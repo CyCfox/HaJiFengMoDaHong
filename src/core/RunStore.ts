@@ -2,11 +2,18 @@ import { BUFFS, COLLECTIONS, PLAYER_BASE, WEAPONS } from "../../shared/balance";
 import {
   getBuffBonus, getEquippedWeight, getUpgradeCost, getWeaponConfig, getWeaponStats,
 } from "../../shared/calculations";
-import type { BuffId, BuffStack, CollectionConfig, InventoryItem, RunState, WeaponInstance, WeaponKind, WeaponUpgradeKey } from "../../shared/types";
+import type { BuffId, BuffStack, CollectionConfig, InventoryItem, RunState, PlayerSave, WeaponInstance, WeaponKind, WeaponUpgradeKey } from "../../shared/types";
 import { GameBus } from "./EventBus";
 
 let uidCounter = 1;
 const nextUid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${uidCounter++}`;
+
+export function calculateRedValue(levels: Record<string, number>): number {
+  return COLLECTIONS.reduce((sum, collection) => {
+    if (collection.rarity !== "red") return sum;
+    return sum + (levels[collection.id] ?? 0) * collection.price;
+  }, 0);
+}
 
 export function createWeaponInstance(kind: WeaponKind, serial: number, equipped = false): WeaponInstance {
   return {
@@ -19,10 +26,15 @@ export function createWeaponInstance(kind: WeaponKind, serial: number, equipped 
   };
 }
 
-export function createInitialRun(litIds: string[] = []): RunState {
+export function createInitialRun(
+  collectionLevels: Record<string, number> = {},
+  collectionValue = calculateRedValue(collectionLevels),
+  level = 1,
+  clearedLevels = 0,
+): RunState {
   const starter = createWeaponInstance("g18", 1, true);
   return {
-    level: 1,
+    level,
     coins: 0,
     backpack: [],
     warehouse: [],
@@ -36,10 +48,11 @@ export function createInitialRun(litIds: string[] = []): RunState {
     loadCapacity: PLAYER_BASE.loadCapacity,
     backpackCapacity: PLAYER_BASE.backpackCapacity,
     pickupRadius: PLAYER_BASE.pickupRadius,
-    litCollectionIds: [...litIds],
+    collectionLevels: { ...collectionLevels },
+    collectionValue,
     drawCountThisAffairs: 0,
     inAffairs: false,
-    clearedLevels: 0,
+    clearedLevels,
   };
 }
 
@@ -66,9 +79,63 @@ class RunStore {
     this.emit();
   }
 
-  setLit(ids: string[]): void {
-    this.state.litCollectionIds = [...new Set(ids)];
+  serializeSave(): PlayerSave {
+    const state = this.state;
+    return {
+      level: state.level,
+      coins: state.coins,
+      clearedLevels: state.clearedLevels,
+      ownedWeapons: state.ownedWeapons.map((weapon) => ({ ...weapon, levels: { ...weapon.levels } })),
+      backpack: state.backpack.map((item) => ({ ...item })),
+      warehouse: state.warehouse.map((item) => ({ ...item })),
+      buffs: state.buffs.map((buff) => ({ ...buff })),
+      drawCountThisAffairs: state.drawCountThisAffairs,
+    };
+  }
+
+  applySave(save: PlayerSave | null): void {
+    const next = save ?? createInitialRun(
+      { ...this.state.collectionLevels },
+      this.state.collectionValue,
+      this.state.level,
+      this.state.clearedLevels,
+    );
+    this.state = createInitialRun(
+      { ...this.state.collectionLevels },
+      this.state.collectionValue,
+      next.level,
+      next.clearedLevels,
+    );
+    this.state.coins = next.coins;
+    this.state.ownedWeapons = next.ownedWeapons.length
+      ? next.ownedWeapons.map((weapon) => ({ ...weapon, levels: { ...weapon.levels } }))
+      : [createWeaponInstance("g18", 1, true)];
+    this.state.backpack = next.backpack.map((item) => ({ ...item }));
+    this.state.warehouse = next.warehouse.map((item) => ({ ...item }));
+    this.state.buffs = next.buffs.map((buff) => ({ ...buff }));
+    this.state.drawCountThisAffairs = next.drawCountThisAffairs ?? 0;
+    this.recalcPassiveStats();
+    this.state.currentHp = this.state.maxHp;
+    this.state.currentArmor = this.state.maxArmor;
     this.emit();
+  }
+
+  setCollectionLevels(levels: Record<string, number>, value?: number): void {
+    const normalized: Record<string, number> = {};
+    for (const [id, level] of Object.entries(levels)) {
+      if (level > 0) normalized[id] = Math.max(0, Math.floor(level));
+    }
+    this.state.collectionLevels = normalized;
+    this.state.collectionValue = value ?? calculateRedValue(normalized);
+    this.emit();
+  }
+
+  getCollectionLevel(id: string): number {
+    return this.state.collectionLevels[id] ?? 0;
+  }
+
+  getCollectionValue(): number {
+    return this.state.collectionValue;
   }
 
   applyBuff(id: BuffId): void {
@@ -120,13 +187,20 @@ class RunStore {
   }
 
   resetRun(): void {
-    this.state = createInitialRun([...this.state.litCollectionIds]);
+    const level = this.state.level;
+    const clearedLevels = this.state.clearedLevels;
+    this.state = createInitialRun(
+      { ...this.state.collectionLevels },
+      this.state.collectionValue,
+      level,
+      clearedLevels,
+    );
     this.recalcPassiveStats();
     this.emit();
   }
 
   hasCollection(id: string): boolean {
-    return this.state.litCollectionIds.includes(id);
+    return (this.state.collectionLevels[id] ?? 0) > 0;
   }
 
   getCollection(id: string): CollectionConfig | undefined {
@@ -259,16 +333,20 @@ class RunStore {
   }
 
   makeSubmission(id: string): { ok: boolean; reason?: string } {
-    if (this.state.litCollectionIds.includes(id)) return { ok: false, reason: "已点亮" };
+    const collection = this.getCollection(id);
+    if (!collection) return { ok: false, reason: "未知藏品" };
+    const level = this.getCollectionLevel(id);
+    if (level > 0 && collection.rarity !== "red") return { ok: false, reason: "该藏品已点亮" };
     const itemIndex = this.state.warehouse.findIndex((i) => i.collectionId === id);
     if (itemIndex < 0) return { ok: false, reason: "仓库没有该藏品" };
     return { ok: true };
   }
 
-  consumeForSubmission(id: string): void {
+  consumeForSubmission(id: string, nextLevel: number, redValue?: number): void {
     const index = this.state.warehouse.findIndex((i) => i.collectionId === id);
     if (index >= 0) this.state.warehouse.splice(index, 1);
-    if (!this.state.litCollectionIds.includes(id)) this.state.litCollectionIds.push(id);
+    this.state.collectionLevels[id] = Math.max(this.getCollectionLevel(id), Math.max(0, Math.floor(nextLevel)));
+    this.state.collectionValue = redValue ?? calculateRedValue(this.state.collectionLevels);
     this.emit();
   }
 
@@ -279,4 +357,3 @@ class RunStore {
 
 export const store = new RunStore();
 export const RunStoreEvent = GameBus;
-

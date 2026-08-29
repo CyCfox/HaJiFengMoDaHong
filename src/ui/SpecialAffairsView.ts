@@ -352,23 +352,33 @@ export class SpecialAffairsView {
 
   private renderCollection(): void {
     const state = store.getState();
+    const loggedIn = Boolean(SaveGateway.getCurrentUser());
+    const litCount = Object.keys(state.collectionLevels).filter((id) => state.collectionLevels[id] > 0).length;
+    const totalLevel = Object.values(state.collectionLevels).reduce((sum, level) => sum + level, 0);
     this.content.innerHTML = "";
     this.content.appendChild(el("h2", "panel-heading", "收藏室"));
-    this.content.appendChild(el("p", "panel-description", `已点亮 ${state.litCollectionIds.length} / ${COLLECTIONS.length}`));
+    this.content.appendChild(el("p", "panel-description", `已点亮 ${litCount} / ${COLLECTIONS.length} 个展柜 · 总等级 Lv${totalLevel} · 大红价值 ${fmtCoin(state.collectionValue)}`));
     const grid = el("div", "collection-grid");
     COLLECTIONS.forEach((collection) => {
-      const lit = state.litCollectionIds.includes(collection.id);
+      const level = state.collectionLevels[collection.id] ?? 0;
+      const lit = level > 0;
       const count = state.warehouse.filter((i) => i.collectionId === collection.id).length;
       const card = el("div", `collection-card ${rarityClass(collection.rarity)} ${lit ? "lit" : ""}`);
+      card.appendChild(el("div", `collection-level-badge ${lit ? "lit" : ""}`, lit ? `Lv ${level}` : "Lv 0"));
       card.appendChild(imageEl(collection.asset, "collection-art", collection.name));
       card.appendChild(el("div", "collection-name", collection.name));
       card.appendChild(el("div", "collection-detail", `${collection.rarity === "red" ? "红" : collection.rarity === "gold" ? "金" : collection.rarity === "purple" ? "紫" : "蓝"} · ${fmtCoin(collection.price)} · ${collection.slots}格 · 仓库${count}`));
-      if (lit) {
+      if (lit && collection.rarity !== "red") {
         card.appendChild(el("div", "lit-badge", "已点亮"));
-      } else {
-        const submit = el("button", "small-button gold", "提交点亮");
-        submit.disabled = count < 1;
+      } else if (lit && collection.rarity === "red") {
+        const submit = el("button", "small-button gold", loggedIn ? "再次提交 +1级" : "登录后升级");
+        submit.disabled = count < 1 || !loggedIn;
         submit.addEventListener("click", async () => {
+          if (!loggedIn) {
+            AudioManager.play("denied");
+            toast(this.root, "请先登录后再提交收藏室", "warning");
+            return;
+          }
           const check = store.makeSubmission(collection.id);
           if (!check.ok) {
             AudioManager.play("denied");
@@ -376,11 +386,37 @@ export class SpecialAffairsView {
             return;
           }
           try {
-            const lit = await SaveGateway.lightCollection(collection.id);
-            store.setLit(lit);
-            store.consumeForSubmission(collection.id);
+            const result = await SaveGateway.lightCollection(collection.id);
+            store.consumeForSubmission(collection.id, result.level, result.redValue);
             AudioManager.play("submit");
-            toast(this.root, `${collection.name} 已点亮并永久保存`, "success");
+            toast(this.root, `${collection.name} 升级至 Lv${result.level}`, "success");
+            this.render();
+          } catch {
+            AudioManager.play("denied");
+            toast(this.root, "网络或服务异常，藏品未消耗，请重试", "danger");
+          }
+        });
+        card.appendChild(submit);
+      } else {
+        const submit = el("button", "small-button gold", loggedIn ? "提交点亮" : "登录后提交");
+        submit.disabled = count < 1 || !loggedIn;
+        submit.addEventListener("click", async () => {
+          if (!loggedIn) {
+            AudioManager.play("denied");
+            toast(this.root, "请先登录后再提交收藏室", "warning");
+            return;
+          }
+          const check = store.makeSubmission(collection.id);
+          if (!check.ok) {
+            AudioManager.play("denied");
+            toast(this.root, check.reason ?? "无法提交", "warning");
+            return;
+          }
+          try {
+            const result = await SaveGateway.lightCollection(collection.id);
+            store.consumeForSubmission(collection.id, result.level, result.redValue);
+            AudioManager.play("submit");
+            toast(this.root, `${collection.name} 已点亮（Lv${result.level}）`, "success");
             this.render();
           } catch {
             AudioManager.play("denied");
@@ -392,21 +428,21 @@ export class SpecialAffairsView {
       card.addEventListener("click", (event) => {
         const target = event.target as HTMLElement;
         if (target.closest("button")) return;
-        this.openCollectionModal(collection.id);
+        this.openCollectionModal(collection.id, level);
       });
       grid.appendChild(card);
     });
     this.content.appendChild(grid);
   }
 
-  private openCollectionModal(collectionId: string): void {
+  private openCollectionModal(collectionId: string, level = 0): void {
     const info = store.getCollection(collectionId);
     if (!info) return;
     const overlay = el("div", "modal-overlay");
     const modal = el("div", "collection-modal");
     modal.appendChild(imageEl(info.asset, "collection-modal-art", info.name));
     modal.appendChild(el("h3", "modal-title", info.name));
-    modal.appendChild(el("p", "modal-text", `${info.rarity} 品质 · ${info.price.toLocaleString("zh-CN")} 哈哈币 · ${info.slots} 格`));
+    modal.appendChild(el("p", "modal-text", `${info.rarity} 品质 · ${info.price.toLocaleString("zh-CN")} 哈哈币 · ${info.slots} 格 · 展柜 Lv${level}`));
     const close = el("button", "primary-button", "关闭");
     close.addEventListener("click", () => overlay.remove());
     modal.appendChild(close);

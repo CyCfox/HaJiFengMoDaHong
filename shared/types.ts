@@ -87,6 +87,46 @@ export interface BuffStack {
   stacks: number;
 }
 
+export interface CollectionCabinet {
+  collectionId: string;
+  level: number;
+  value: number;
+}
+
+export interface AuthUser {
+  id: string;
+  username: string;
+}
+
+export interface PlayerSave {
+  level: number;
+  coins: number;
+  clearedLevels: number;
+  ownedWeapons: WeaponInstance[];
+  backpack: InventoryItem[];
+  warehouse: InventoryItem[];
+  buffs: BuffStack[];
+  drawCountThisAffairs: number;
+}
+
+export interface PlayerProfile {
+  bestLevel: number;
+  redValue: number;
+}
+
+export interface CollectionBackendMeta {
+  id: string;
+  name: string;
+  rarity: Rarity;
+  price: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  value: number;
+}
+
 export interface RunState {
   level: number;
   coins: number;
@@ -102,7 +142,8 @@ export interface RunState {
   loadCapacity: number;
   backpackCapacity: number;
   pickupRadius: number;
-  litCollectionIds: string[];
+  collectionLevels: Record<string, number>;
+  collectionValue: number;
   drawCountThisAffairs: number;
   inAffairs: boolean;
   clearedLevels: number;

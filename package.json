@@ -5,14 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"node server/index.mjs\"",
+    "dev:cloudflare": "wrangler pages dev --port 8788",
     "build": "tsc --noEmit && vite build",
     "start": "node server/index.mjs",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "db:create": "wrangler d1 create hajifeng",
+    "db:migrate": "wrangler d1 execute hajifeng --file=./schema.sql --remote",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:api": "vitest run tests/server.test.ts",
     "qa": "npm run build && node tests/visual-check.mjs",
     "test:e2e": "npm run build && node tests/e2e-flows.mjs",
     "test:freeze": "npm run build && node tests/freeze-regression.mjs",
-    "test:boss": "npm run build && node tests/boss-regression.mjs"
+    "test:boss": "npm run build && node tests/boss-regression.mjs",
+    "db:migrate:local": "wrangler d1 execute hajifeng --file=./schema.sql --local"
   },
   "dependencies": {
     "express": "^5.1.0",
@@ -25,6 +31,7 @@
     "playwright-core": "^1.62.1",
     "typescript": "^5.8.3",
     "vite": "^7.0.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.127.1"
   }
 }

@@ -10,7 +10,14 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 await page.goto("http://localhost:3001", { waitUntil: "networkidle", timeout: 60000 });
-await page.waitForTimeout(1800);
+await page.waitForTimeout(1400);
+await page.click(".auth-register-tab");
+const username = `e2e_${Date.now()}`;
+await page.fill(".auth-username", username);
+await page.fill(".auth-password", "password123");
+await page.fill(".auth-confirm", "password123");
+await page.click(".auth-submit");
+await page.waitForTimeout(1200);
 await page.click(".start-game");
 await page.waitForTimeout(1600);
 await page.evaluate(() => {
@@ -97,8 +104,8 @@ if (submitCount) {
   await page.waitForTimeout(500);
 }
 await page.screenshot({ path: resolve(out, "collection.png"), fullPage: true });
-const lit = await page.evaluate(() => window.__hfDebug.store.getState().litCollectionIds);
-console.log("lit", lit, "errors", errors);
+const levels = await page.evaluate(() => ({ ...window.__hfDebug.store.getState().collectionLevels }));
+console.log("levels", levels, "errors", errors);
 
 await page.click('[data-panel="start"]');
 await page.waitForTimeout(200);

@@ -12,6 +12,13 @@ page.on("console", (message) => { if (message.type() === "error") errors.push(me
 
 await page.goto("http://localhost:3001", { waitUntil: "networkidle", timeout: 60000 });
 await page.waitForTimeout(1400);
+await page.click(".auth-register-tab");
+const username = `boss_${Date.now()}`;
+await page.fill(".auth-username", username);
+await page.fill(".auth-password", "password123");
+await page.fill(".auth-confirm", "password123");
+await page.click(".auth-submit");
+await page.waitForTimeout(900);
 await page.click(".start-game");
 await page.waitForTimeout(1000);
 

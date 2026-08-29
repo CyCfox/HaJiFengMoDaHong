@@ -1,6 +1,9 @@
 import { AudioManager } from "../audio/AudioManager";
 import { store } from "../core/RunStore";
+import { SaveGateway } from "../core/SaveGateway";
 import { BattleHud } from "./BattleHud";
+import { AuthOverlay, type AuthMode } from "./AuthOverlay";
+import { LeaderboardOverlay } from "./LeaderboardOverlay";
 import { SpecialAffairsView } from "./SpecialAffairsView";
 import { el, imageEl, toast } from "./helpers";
 
@@ -24,6 +27,11 @@ export class UIApp {
   private instructions!: HTMLElement;
   private toastRoot!: HTMLElement;
   private affairs!: SpecialAffairsView;
+  private auth!: AuthOverlay;
+  private leaderboard!: LeaderboardOverlay;
+  private accountText!: HTMLElement;
+  private logoutEntry!: HTMLButtonElement;
+  private currentUsername: string | null = null;
 
   constructor(private actions: UIActions) {
     this.root = document.getElementById("ui-root")!;
@@ -41,6 +49,8 @@ export class UIApp {
     this.createPause();
     this.createInstructions();
     this.createSettings();
+    this.createAuth();
+    this.createLeaderboard();
     this.toastRoot = el("div", "toast-root");
     this.root.appendChild(this.toastRoot);
     this.root.addEventListener("pointerover", (event) => {
@@ -67,17 +77,23 @@ export class UIApp {
         <div class="menu-buttons">
           <button class="primary-button start-game">开始游戏</button>
           <button class="secondary-button affairs-entry">特勤处</button>
+          <button class="ghost-button leaderboard-entry">排行榜</button>
           <button class="ghost-button instructions-entry">说明</button>
           <button class="ghost-button settings-entry">设置</button>
+          <button class="ghost-button logout-entry hidden">退出登录</button>
         </div>
+        <div class="menu-account"><span class="menu-account-text">当前：未登录</span></div>
       </div>
     `;
     const logo = this.menu.querySelector(".game-logo")!;
     logo.appendChild(imageEl("assets/title/标题.png", "menu-title-image", "哈基蜂摸大红"));
+    this.accountText = this.menu.querySelector<HTMLElement>(".menu-account-text")!;
+    this.logoutEntry = this.menu.querySelector<HTMLButtonElement>(".logout-entry")!;
+
     this.menu.querySelector(".start-game")!.addEventListener("click", () => {
       AudioManager.init();
       AudioManager.play("start");
-      store.resetRun();
+      store.startLevel();
       this.actions.startGame();
       this.hideAll();
       this.battleHud.show();
@@ -87,6 +103,14 @@ export class UIApp {
       AudioManager.play("click");
       this.actions.openAffairs();
       this.showAffairs();
+    });
+    this.menu.querySelector(".leaderboard-entry")!.addEventListener("click", () => {
+      AudioManager.init();
+      AudioManager.play("click");
+      this.leaderboard.show();
+    });
+    this.logoutEntry.addEventListener("click", () => {
+      void this.logout();
     });
     this.menu.querySelector(".settings-entry")!.addEventListener("click", () => {
       AudioManager.init();
@@ -159,14 +183,13 @@ export class UIApp {
     `;
     this.gameOver.querySelector(".gameover-restart")!.addEventListener("click", () => {
       AudioManager.play("start");
-      store.resetRun();
+      store.startLevel();
       this.hideAll();
       this.actions.startGame();
       this.battleHud.show();
     });
     this.gameOver.querySelector(".gameover-menu")!.addEventListener("click", () => {
       AudioManager.play("click");
-      store.resetRun();
       this.goMenu();
     });
     this.root.appendChild(this.gameOver);
@@ -194,11 +217,93 @@ export class UIApp {
     this.pause.querySelector(".pause-quit")!.addEventListener("click", () => {
       AudioManager.play("click");
       this.pause.classList.add("hidden");
-      store.resetRun();
       this.actions.quitToMenu();
       this.goMenu();
     });
     this.root.appendChild(this.pause);
+  }
+
+  private createSettings(): void {
+    this.settings = el("div", "settings-screen hidden");
+    this.settings.innerHTML = `
+      <div class="settings-card">
+        <h2>基础设置</h2>
+        <label>总音量 <input type="range" min="0" max="100" value="70" class="setting-master"></label>
+        <label>音效音量 <input type="range" min="0" max="100" value="90" class="setting-sfx"></label>
+        <label><input type="checkbox" checked class="setting-audio"> 启用音效</label>
+        <label>粒子质量 <select class="setting-particles"><option value="low">低</option><option value="medium" selected>中</option><option value="high">高</option></select></label>
+        <button class="primary-button settings-close">保存并关闭</button>
+      </div>
+    `;
+    const master = this.settings.querySelector<HTMLInputElement>(".setting-master")!;
+    const sfx = this.settings.querySelector<HTMLInputElement>(".setting-sfx")!;
+    const audio = this.settings.querySelector<HTMLInputElement>(".setting-audio")!;
+    master.addEventListener("input", () => {
+      AudioManager.setVolume(Number(master.value) / 100);
+      localStorage.setItem("hajifeng-master-volume", master.value);
+    });
+    sfx.addEventListener("input", () => localStorage.setItem("hajifeng-sfx-volume", sfx.value));
+    audio.addEventListener("change", () => {
+      AudioManager.setEnabled(audio.checked);
+      localStorage.setItem("hajifeng-audio-enabled", String(audio.checked));
+    });
+    this.settings.querySelector(".settings-close")!.addEventListener("click", () => {
+      AudioManager.play("click");
+      this.closeSettings();
+    });
+    this.root.appendChild(this.settings);
+  }
+
+  private createAuth(): void {
+    this.auth = new AuthOverlay((mode, username, password) => this.handleAuth(mode, username, password), () => this.auth.hide());
+    this.root.appendChild(this.auth.root);
+  }
+
+  private createLeaderboard(): void {
+    this.leaderboard = new LeaderboardOverlay((type) => SaveGateway.getLeaderboard(type), () => this.leaderboard.hide());
+    this.root.appendChild(this.leaderboard.root);
+  }
+
+  private async handleAuth(mode: AuthMode, username: string, password: string): Promise<void> {
+    const result = mode === "login"
+      ? await SaveGateway.login(username, password)
+      : await SaveGateway.register(username, password);
+    this.setAccount(result.user.username);
+    try {
+      store.applySave(await SaveGateway.loadSave());
+    } catch {
+      this.toast("存档加载失败，已使用默认进度", "warning");
+    }
+    try {
+      const cabinets = await SaveGateway.loadCollections();
+      const levels: Record<string, number> = {};
+      for (const cabinet of cabinets) levels[cabinet.collectionId] = cabinet.level;
+      store.setCollectionLevels(levels, result.profile.redValue);
+    } catch {
+      this.toast("收藏室数据加载失败，请返回主菜单重试", "warning");
+    }
+    this.showMenu();
+    this.toast(`已登录：${result.user.username}`, "success");
+  }
+
+  private async logout(): Promise<void> {
+    try {
+      await this.persistSave();
+      await SaveGateway.logout();
+      this.setAccount(null);
+      store.setCollectionLevels({}, 0);
+      store.applySave(null);
+      this.showLogin();
+      this.toast("已退出登录", "info");
+    } catch {
+      this.toast("退出登录失败，请稍后重试", "danger");
+    }
+  }
+
+  setAccount(username: string | null): void {
+    this.currentUsername = username;
+    this.accountText.textContent = username ? `当前：${username}` : "当前：未登录";
+    this.logoutEntry.classList.toggle("hidden", !username);
   }
 
   showLoading(): void {
@@ -207,7 +312,12 @@ export class UIApp {
 
   hideLoading(): void {
     this.loading.style.display = "none";
-    this.menu.classList.remove("hidden");
+  }
+
+  showLogin(): void {
+    this.hideAll();
+    this.menu.classList.add("hidden");
+    this.auth.show(true);
   }
 
   showMenu(): void {
@@ -248,13 +358,25 @@ export class UIApp {
     this.pause.classList.add("hidden");
     this.instructions.classList.add("hidden");
     this.affairs.hide();
+    if (this.auth) this.auth.hide();
+    if (this.leaderboard) this.leaderboard.hide();
     this.battleHud.hide();
   }
 
   private goMenu(): void {
+    void this.persistSave();
     this.hideAll();
     store.exitAffairs();
     this.menu.classList.remove("hidden");
+  }
+
+  private async persistSave(): Promise<void> {
+    if (!SaveGateway.getCurrentUser()) return;
+    try {
+      await SaveGateway.saveRun(store.serializeSave());
+    } catch {
+      this.toast("当前进度保存失败，请稍后重试", "warning");
+    }
   }
 
   private openSettings(): void {
@@ -263,36 +385,5 @@ export class UIApp {
 
   private closeSettings(): void {
     this.settings.classList.add("hidden");
-  }
-
-  private createSettings(): void {
-    this.settings = el("div", "settings-screen hidden");
-    this.settings.innerHTML = `
-      <div class="settings-card">
-        <h2>基础设置</h2>
-        <label>总音量 <input type="range" min="0" max="100" value="70" class="setting-master"></label>
-        <label>音效音量 <input type="range" min="0" max="100" value="90" class="setting-sfx"></label>
-        <label><input type="checkbox" checked class="setting-audio"> 启用音效</label>
-        <label>粒子质量 <select class="setting-particles"><option value="low">低</option><option value="medium" selected>中</option><option value="high">高</option></select></label>
-        <button class="primary-button settings-close">保存并关闭</button>
-      </div>
-    `;
-    const master = this.settings.querySelector<HTMLInputElement>(".setting-master")!;
-    const sfx = this.settings.querySelector<HTMLInputElement>(".setting-sfx")!;
-    const audio = this.settings.querySelector<HTMLInputElement>(".setting-audio")!;
-    master.addEventListener("input", () => {
-      AudioManager.setVolume(Number(master.value) / 100);
-      localStorage.setItem("hajifeng-master-volume", master.value);
-    });
-    sfx.addEventListener("input", () => localStorage.setItem("hajifeng-sfx-volume", sfx.value));
-    audio.addEventListener("change", () => {
-      AudioManager.setEnabled(audio.checked);
-      localStorage.setItem("hajifeng-audio-enabled", String(audio.checked));
-    });
-    this.settings.querySelector(".settings-close")!.addEventListener("click", () => {
-      AudioManager.play("click");
-      this.closeSettings();
-    });
-    this.root.appendChild(this.settings);
   }
 }

@@ -17,7 +17,14 @@ page.on("console", (msg) => {
 });
 page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
 await page.goto(base, { waitUntil: "networkidle", timeout: 60000 });
-await page.waitForTimeout(2000);
+await page.waitForTimeout(1400);
+await page.click(".auth-register-tab");
+const username = `qa_${Date.now()}`;
+await page.fill(".auth-username", username);
+await page.fill(".auth-password", "password123");
+await page.fill(".auth-confirm", "password123");
+await page.click(".auth-submit");
+await page.waitForTimeout(900);
 await page.screenshot({ path: resolve(out, "menu.png"), fullPage: true });
 const menuCheck = await page.evaluate(() => {
   const image = document.querySelector(".menu-title-image");

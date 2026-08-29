@@ -26,7 +26,7 @@ img { pointer-events: none; }
 #ui-root { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
 
 .ui-root > * { font-size: 15px; }
-.menu-screen, .affairs-screen, .loading-screen, .gameover-screen, .pause-screen, .settings-screen, .instructions-screen { position: absolute; inset: 0; pointer-events: auto; }
+.menu-screen, .affairs-screen, .loading-screen, .gameover-screen, .pause-screen, .settings-screen, .instructions-screen, .auth-screen, .leaderboard-screen { position: absolute; inset: 0; pointer-events: auto; }
 
 /* Loading */
 .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 40%, #18231b 0%, #060906 75%); z-index: 200; }
@@ -244,6 +244,37 @@ img { pointer-events: none; }
 .toast-success { border-color: #65cf83; color: #baffc8; }
 .toast-warning { border-color: #e1ad4b; color: #ffe0a0; }
 .toast-danger { border-color: #ef6a6a; color: #ffb0b0; }
+
+
+/* Account and leaderboard */
+.menu-account { margin-top: 14px; color: #5e745f; font-size: 13px; letter-spacing: 1px; }
+.auth-screen, .leaderboard-screen { display: flex; align-items: center; justify-content: center; background: rgba(3, 5, 4, .86); z-index: 260; backdrop-filter: blur(7px); }
+.auth-card, .leaderboard-card { width: min(560px, 92vw); max-height: 88vh; overflow-y: auto; padding: 30px; border-radius: 16px; background: linear-gradient(155deg, #18231b, #0b120d); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,.6); scrollbar-width: thin; scrollbar-color: #64a96c #172219; }
+.auth-card h2, .leaderboard-card h2 { margin: 0 0 20px; text-align: center; }
+.auth-tabs, .leaderboard-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.auth-tab, .leaderboard-tab { flex: 1; padding: 10px; border: 0; border-radius: 9px; background: #1c2b20; color: var(--muted); font-weight: 700; }
+.auth-tab.active, .leaderboard-tab.active { background: linear-gradient(135deg, #d7d57e, #8bbb58); color: #111; }
+.auth-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; color: #cde0ca; }
+.auth-field input { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #16231a; color: var(--text); outline: none; }
+.auth-field input:focus { border-color: #7cc36c; box-shadow: 0 0 0 3px rgba(124,195,108,.15); }
+.auth-error { min-height: 20px; color: #ff9b9b; font-size: 13px; margin: 4px 0 8px; }
+.auth-submit, .auth-close { width: 100%; margin-top: 10px; }
+.leaderboard-head { display: flex; align-items: center; justify-content: space-between; }
+.leaderboard-head h2 { flex: 1; }
+.leaderboard-close { padding: 7px 12px; }
+.leaderboard-status { min-height: 20px; color: var(--muted); margin-bottom: 10px; text-align: center; }
+.leaderboard-list { display: flex; flex-direction: column; gap: 8px; max-height: 58vh; overflow-y: auto; }
+.leaderboard-row { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 10px; padding: 10px 14px; background: #17251a; border: 1px solid var(--line); border-radius: 9px; }
+.leaderboard-rank { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: #243a29; color: #dcebd8; font-weight: 800; }
+.rank-1 { background: linear-gradient(135deg, #ffd85a, #b98616); color: #241a06; }
+.rank-2 { background: linear-gradient(135deg, #e5e8e1, #929b98); color: #202622; }
+.rank-3 { background: linear-gradient(135deg, #e1a56a, #934f2d); color: #2a170b; }
+.leaderboard-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.leaderboard-value { color: #f2d77e; font-weight: 800; }
+
+/* Collection cabinets */
+.collection-level-badge { position: absolute; left: 8px; top: 8px; padding: 4px 8px; background: #243529; border: 1px solid rgba(255,255,255,.14); border-radius: 18px; color: #a9bfa9; font-size: 11px; font-weight: 800; }
+.collection-level-badge.lit { background: linear-gradient(135deg, #6fff9a, #2e9d5b); border-color: #98ffbd; color: #06230f; box-shadow: 0 0 12px rgba(111,255,154,.35); }
 
 @media (max-width: 760px) {
   .affairs-nav button { padding: 8px 9px; font-size: 12px; }

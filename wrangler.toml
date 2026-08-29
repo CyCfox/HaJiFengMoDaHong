@@ -1,0 +1,8 @@
+name = "ha-ji-feng-mo-da-hong"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hajifeng"
+database_id = "ee058f7b-fb65-47e2-b899-927908d033ec"

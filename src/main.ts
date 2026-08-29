@@ -57,11 +57,26 @@ const game = new Phaser.Game({
 ui.showLoading();
 GameBus.on("boot:ready", async () => {
   ui.hideLoading();
-  try {
-    const lit = await SaveGateway.loadLitCollections();
-    store.setLit(lit);
-  } catch {
-    ui.toast("后端不可用，收藏室将只保存在当前页面", "warning");
+  const auth = await SaveGateway.me();
+  ui.setAccount(auth?.user.username ?? null);
+  if (auth) {
+    try {
+      store.applySave(await SaveGateway.loadSave());
+    } catch {
+      ui.toast("存档加载失败，已使用默认进度", "warning");
+    }
+    try {
+      const cabinets = await SaveGateway.loadCollections();
+      const levels: Record<string, number> = {};
+      for (const cabinet of cabinets) levels[cabinet.collectionId] = cabinet.level;
+      store.setCollectionLevels(levels, auth.profile.redValue);
+    } catch {
+      ui.toast("收藏室数据加载失败，请稍后重新登录", "warning");
+    }
+    ui.showMenu();
+  } else {
+    store.setCollectionLevels({}, 0);
+    ui.showLogin();
   }
 });
 
@@ -71,11 +86,39 @@ GameBus.on("battle:pause", () => ui.showPause());
 GameBus.on("battle:toggleBag", () => ui.battleHud.toggleBackpack());
 GameBus.on("battle:extracted", () => {
   store.advanceLevel();
+  if (SaveGateway.getCurrentUser()) {
+    void SaveGateway.submitProgress(store.getState().clearedLevels).catch(() => {
+      ui.toast("最高进度同步失败，稍后重新进入会重试", "warning");
+    });
+    void SaveGateway.saveRun(store.serializeSave()).catch(() => {
+      ui.toast("关卡存档同步失败", "warning");
+    });
+  }
   store.beginNewAffairs();
   ui.showAffairs();
 });
 GameBus.on("battle:gameover", () => {
+  const level = store.getState().level;
+  const clearedLevels = store.getState().clearedLevels;
+  if (SaveGateway.getCurrentUser()) {
+    void SaveGateway.resetAfterDeath(level, clearedLevels).catch(() => {
+      ui.toast("死亡存档重置失败，下次登录可能恢复旧状态", "warning");
+    });
+  }
+  store.resetRun();
   ui.showGameOver();
+});
+
+let saveTimer: number | undefined;
+store.subscribe(() => {
+  const state = store.getState();
+  if (!state.inAffairs || !SaveGateway.getCurrentUser()) return;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    void SaveGateway.saveRun(store.serializeSave()).catch(() => {
+      ui.toast("自动存档失败，请稍后重试", "warning");
+    });
+  }, 500);
 });
 
 document.addEventListener("pointerdown", () => AudioManager.init(), { once: true });
@@ -87,7 +130,6 @@ window.addEventListener("resize", () => {
 document.documentElement.style.height = `${window.innerHeight}px`;
 document.body.style.height = `${window.innerHeight}px`;
 
-const debugHandle = { game, store, bus: GameBus };
+const debugHandle = { game, store, bus: GameBus, SaveGateway };
 (window as unknown as { __hfDebug?: typeof debugHandle }).__hfDebug = debugHandle;
 export { game };
-

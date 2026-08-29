@@ -5,3 +5,5 @@ server/data/*.sqlite-*
 qa-artifacts/
 *.log
 .DS_Store
+.wrangler/
+.wrangler-config/

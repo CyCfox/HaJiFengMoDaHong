@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUFFS, COLLECTIONS, WEAPONS, WEAPON_ORDER } from "../shared/balance";
+import { COLLECTION_META } from "../shared/collection-meta.mjs";
 import {
   getDrawCost, getEnemyComposition, getEnemyMultipliers, getEquippedWeight, getUpgradeCost,
   getWeaponSellPrice, getWeaponStats, getBuffBonus, sampleBuffCards,
@@ -119,5 +120,11 @@ describe("drawing and buffs", () => {
     expect(BUFFS).toHaveLength(16);
     expect(COLLECTIONS).toHaveLength(15);
     expect(WEAPON_ORDER).toHaveLength(4);
+  });
+
+  it("keeps backend collection meta in sync with game balance", () => {
+    expect(COLLECTION_META.map(({ id, rarity, price }) => ({ id, rarity, price }))).toEqual(
+      COLLECTIONS.map(({ id, rarity, price }) => ({ id, rarity, price })),
+    );
   });
 });
