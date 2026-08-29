@@ -198,7 +198,7 @@ export async function handleApiRequest(request, db) {
 
     if (method === "GET" && path === "/api/auth/me") {
       const user = await requireUser(request, db);
-      if (!user) return unauthorized();
+      if (!user) return json({ ok: true, user: null, profile: null });
       return authResult(request, db, user);
     }
 

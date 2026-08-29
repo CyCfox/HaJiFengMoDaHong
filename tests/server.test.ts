@@ -118,11 +118,11 @@ describe("Cloudflare-compatible account and collection API", () => {
     const death = await authFetch("/api/save/death", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ level: 4, clearedLevels: 3 }),
+      body: JSON.stringify({ level: 1, clearedLevels: 0 }),
     });
     const deathJson = await death.json();
-    expect(deathJson.save.level).toBe(4);
-    expect(deathJson.save.clearedLevels).toBe(3);
+    expect(deathJson.save.level).toBe(1);
+    expect(deathJson.save.clearedLevels).toBe(0);
     expect(deathJson.save.coins).toBe(0);
     expect(deathJson.save.ownedWeapons).toHaveLength(1);
     expect(deathJson.save.ownedWeapons[0].kind).toBe("g18");
@@ -200,7 +200,9 @@ describe("Cloudflare-compatible account and collection API", () => {
     const out = await authFetch("/api/auth/logout", { method: "POST" });
     expect(out.status).toBe(200);
     cookie = "";
-    expect((await authFetch("/api/auth/me")).status).toBe(401);
+    const meAfterLogout = await authFetch("/api/auth/me");
+    expect(meAfterLogout.status).toBe(200);
+    expect((await meAfterLogout.json()).user).toBeNull();
 
     const login = await authFetch("/api/auth/login", {
       method: "POST",

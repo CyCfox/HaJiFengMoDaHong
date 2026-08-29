@@ -21,9 +21,17 @@ await page.click(".auth-submit");
 await page.waitForTimeout(900);
 await page.click(".start-game");
 await page.waitForTimeout(1000);
+await page.evaluate(() => {
+  const state = window.__hfDebug.store.getState();
+  state.maxHp = 100000;
+  state.currentHp = 100000;
+});
 
 await page.evaluate(() => {
   const scene = window.__hfDebug.game.scene.getScene("Battle");
+  scene.player.maxHp = 100000;
+  scene.player.hp = 100000;
+  scene.player.syncToStore();
   for (const enemy of scene.enemies) enemy.destroy();
   scene.enemies = [];
   scene.spawnQueue = [];
@@ -31,8 +39,13 @@ await page.evaluate(() => {
   const boss = scene.enemies.find((enemy) => enemy.kind === "boss");
   boss.setPosition(scene.player.x + 80, scene.player.y);
   boss.hp = boss.maxHp * 0.2;
+  boss.attackRange = 0;
   boss.beginBossPhase();
+  const originalRandom = Math.random;
+  Math.random = () => 0.9;
   scene.fireEnemy({ enemy: boss, angle: 0, distance: 80 });
+  Math.random = originalRandom;
+  scene.updateBossSummons(16000);
 });
 await page.waitForTimeout(300);
 await page.evaluate(() => {
@@ -40,6 +53,7 @@ await page.evaluate(() => {
   for (const enemy of scene.enemies) {
     enemy.hp = 1;
     enemy.maxHp = 1;
+    if (enemy.kind !== "boss") enemy.setPosition(scene.player.x + 50 + Math.random() * 140, scene.player.y + (Math.random() - 0.5) * 80);
   }
   for (const mount of scene.mounts) {
     mount.weapon.levels.damage = 100000;

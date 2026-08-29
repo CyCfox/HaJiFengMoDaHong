@@ -153,6 +153,7 @@ class RunStore {
     this.state.maxArmor = PLAYER_BASE.maxArmor + bonus.armor;
     this.state.moveSpeed = PLAYER_BASE.moveSpeed * bonus.speedMultiplier;
     this.state.backpackCapacity = PLAYER_BASE.backpackCapacity + bonus.backpack;
+    this.state.loadCapacity = PLAYER_BASE.loadCapacity + bonus.load;
     this.state.pickupRadius = PLAYER_BASE.pickupRadius + (bonus.pickupMagnet ? 80 : 0);
     if (this.state.currentHp > this.state.maxHp) this.state.currentHp = this.state.maxHp;
     if (this.state.currentArmor > this.state.maxArmor) this.state.currentArmor = this.state.maxArmor;
@@ -187,13 +188,11 @@ class RunStore {
   }
 
   resetRun(): void {
-    const level = this.state.level;
-    const clearedLevels = this.state.clearedLevels;
     this.state = createInitialRun(
       { ...this.state.collectionLevels },
       this.state.collectionValue,
-      level,
-      clearedLevels,
+      1,
+      0,
     );
     this.recalcPassiveStats();
     this.emit();
@@ -313,6 +312,7 @@ class RunStore {
   }
 
   upgradeWeapon(instanceId: string, key: WeaponUpgradeKey): boolean {
+    if (key === "pellets") return false;
     const target = this.state.ownedWeapons.find((w) => w.id === instanceId);
     if (!target) return false;
     const config = getWeaponConfig(target.kind);

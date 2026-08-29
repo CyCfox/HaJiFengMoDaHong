@@ -245,13 +245,11 @@ export class SpecialAffairsView {
     WEAPON_UPGRADES.forEach((meta) => {
       const key = meta.key as WeaponUpgradeKey;
       const cost = store.upgradeCost(weapon, key);
-      const gain = key === "pellets"
-        ? "+1"
-        : key === "range"
-          ? `+${Math.round(config.baseRange * 0.05)}`
-          : key === "fireRate"
-            ? `+${(config.baseFireRate * 0.05).toFixed(2)}/秒`
-            : `+${Math.round(config.baseDamage * 0.10)}`;
+      const gain = key === "range"
+        ? `+${Math.round(config.baseRange * 0.05)}`
+        : key === "fireRate"
+          ? `+${(config.baseFireRate * 0.05).toFixed(2)}/秒`
+          : `+${Math.round(config.baseDamage * 0.10)}`;
       const button = el("button", "upgrade-button");
       button.innerHTML = `
         <div class="upgrade-line-title">${meta.label}LV${weapon.levels[key]}→LV${weapon.levels[key] + 1}</div>

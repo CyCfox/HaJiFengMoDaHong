@@ -25,6 +25,16 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.image("container_small", projectAsset(CONTAINERS.small.asset));
     this.load.image("container_large", projectAsset(CONTAINERS.large.asset));
+    this.load.image("military_shell", projectAsset("assets/bullets/军用炮弹.png"));
+    for (let i = 1; i <= 9; i++) {
+      this.load.image(`boom_${i}`, projectAsset(`assets/effects/boom/frames/爆炸特效_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
+    }
+    for (let i = 1; i <= 11; i++) {
+      this.load.image(`fire_${i}`, projectAsset(`assets/effects/shotfire/frames/喷火特效_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
+    }
+    for (let i = 1; i <= 8; i++) {
+      this.load.image(`burn_${i}`, projectAsset(`assets/effects/burn/frames/燃烧特效_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
+    }
   }
 
   create(): void {
@@ -38,8 +48,46 @@ export class BootScene extends Phaser.Scene {
     for (const collection of COLLECTIONS) createCroppedTexture(this, `collection_${collection.id}`, `crop_collection_${collection.id}`);
     createCroppedTexture(this, "container_small", "crop_container_small");
     createCroppedTexture(this, "container_large", "crop_container_large");
+    createCroppedTexture(this, "military_shell", "crop_military_shell");
+    const boomBounds = Array.from({ length: 9 }, (_, i) => sourceBounds(this, `boom_${i + 1}`));
+    const boomUnion = unionBounds(boomBounds);
+    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `boom_${i}`, `crop_boom_${i}`, boomUnion);
+    const fireBounds = Array.from({ length: 11 }, (_, i) => sourceBounds(this, `fire_${i + 1}`));
+    const fireUnion = unionBounds(fireBounds);
+    for (let i = 1; i <= 11; i++) createCroppedTexture(this, `fire_${i}`, `crop_fire_${i}`, fireUnion);
+    const burnBounds = Array.from({ length: 8 }, (_, i) => sourceBounds(this, `burn_${i + 1}`));
+    const burnUnion = unionBounds(burnBounds);
+    for (let i = 1; i <= 8; i++) createCroppedTexture(this, `burn_${i}`, `crop_burn_${i}`, burnUnion);
     this.createBulletTextures();
+    this.createEffectAnimations();
     GameBus.emit("boot:ready", undefined);
+  }
+
+  private createEffectAnimations(): void {
+    if (!this.anims.exists("boom_anim")) {
+      this.anims.create({
+        key: "boom_anim",
+        frames: Array.from({ length: 9 }, (_, i) => ({ key: `crop_boom_${i + 1}` })),
+        frameRate: 18,
+        repeat: 0,
+      });
+    }
+    if (!this.anims.exists("shotfire_anim")) {
+      this.anims.create({
+        key: "shotfire_anim",
+        frames: Array.from({ length: 11 }, (_, i) => ({ key: `crop_fire_${i + 1}` })),
+        frameRate: 18,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists("burn_anim")) {
+      this.anims.create({
+        key: "burn_anim",
+        frames: Array.from({ length: 8 }, (_, i) => ({ key: `crop_burn_${i + 1}` })),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
   }
 
   private createBulletTextures(): void {

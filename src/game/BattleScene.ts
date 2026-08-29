@@ -47,7 +47,12 @@ export class BattleScene extends Phaser.Scene {
   private lastSafePlayerY = WORLD / 2;
   private lastExtractionText = "";
   private handleResize = () => this.applyCameraZoom();
+  private readonly effectTintToken = 0;
   private unsubscribeDiscard: (() => void) | null = null;
+  private flameSprites = new Map<string, Phaser.GameObjects.Sprite>();
+  private fireZones: Array<{ sprite: Phaser.GameObjects.Sprite; x: number; y: number; radius: number; remaining: number; tickTimer: number }> = [];
+  private bossSummonTimers = new Map<string, number>();
+  private statusColorToken = 0;
 
   constructor() {
     super("Battle");
@@ -74,6 +79,10 @@ export class BattleScene extends Phaser.Scene {
     this.extractionArrowNear = null;
     this.extractionArrowArmed = null;
     this.lastExtractionText = "";
+    this.flameSprites.clear();
+    this.fireZones = [];
+    this.bossSummonTimers.clear();
+    this.statusColorToken = 0;
     this.deadEnemyIds.clear();
 
     this.physics.world.setBounds(0, 0, WORLD, WORLD);
@@ -167,6 +176,9 @@ export class BattleScene extends Phaser.Scene {
     this.updateSpawn(delta);
     this.sweepEnemyScenery();
     this.updateEnemies(time, delta);
+    this.updateFlamers(delta);
+    this.updateFireZones(delta);
+    this.updateBossSummons(delta);
     this.updateWeapons(time, delta);
     this.updateStatuses(delta);
     this.updateProjectiles();
@@ -334,43 +346,155 @@ export class BattleScene extends Phaser.Scene {
       const spreads = [-0.12, 0, 0.12];
       spreads.forEach((offset) => this.spawnEnemyProjectile(enemy, angle + offset, "enemy_bullet", 330, config.damage, 0));
     } else if (config.kind === "shield") {
-      this.spawnEnemyProjectile(enemy, angle, "shield_wave", 240, config.damage, 0);
+      this.spawnEnemyProjectile(enemy, angle, "shield_wave", 240, config.damage, 0, { scale: 1.2 });
     } else if (config.kind === "rocket") {
-      this.spawnEnemyProjectile(enemy, angle, "rocket", 250, config.damage, 0);
+      this.spawnEnemyProjectile(enemy, angle, "military_shell", 250, config.damage, 0, {
+        kind: "military_shell",
+        maxDistance: event.distance,
+        facesLeft: true,
+        displayWidth: 52,
+      });
     } else if (config.kind === "gunner") {
       const count = 3;
       const spread = 0.20 / (count - 1);
       for (let i = 0; i < count; i++) this.spawnEnemyProjectile(enemy, angle + (i - 1) * spread, "enemy_bullet", 360, config.damage, 0);
     } else if (config.kind === "flamer") {
-      this.spawnEnemyProjectile(enemy, angle + Phaser.Math.FloatBetween(-0.16, 0.16), "flame", 190, config.damage, 0);
+      return;
     } else if (config.kind === "boss") {
-      const phase = enemy.beginBossPhase();
-      if (phase === 0) {
-        for (let i = -2; i <= 2; i++) this.spawnEnemyProjectile(enemy, angle + i * 0.18, "rocket", 260, config.damage * 0.8, 0);
+      if (Math.random() < 0.5) {
+        for (let i = -2; i <= 2; i++) {
+          this.spawnEnemyProjectile(enemy, angle + i * 0.18, "crop_fire_1", 300, 0, 0, {
+            kind: "flame_arrow",
+            maxDistance: event.distance,
+            facesLeft: true,
+            displayWidth: 72,
+          });
+        }
       } else {
         const count = 10;
         const spread = Math.PI * 2 / count;
         for (let i = 0; i < count; i++) this.spawnEnemyProjectile(enemy, angle + i * spread, "enemy_bullet", 360, config.damage * 0.5, 0);
-        if (phase >= 2 && this.enemies.filter((e) => e.kind === "soldier").length < 3) {
-          for (let i = 0; i < 3; i++) this.spawnEnemy("soldier");
-        }
       }
     }
   }
 
-  private spawnEnemyProjectile(enemy: Enemy, angle: number, texture: string, speed: number, damage: number, pierce: number): void {
+  private spawnEnemyProjectile(
+    enemy: Enemy,
+    angle: number,
+    texture: string,
+    speed: number,
+    damage: number,
+    pierce: number,
+    extra: { kind?: string; maxDistance?: number; facesLeft?: boolean; displayWidth?: number; scale?: number } = {},
+  ): void {
     const projectile = new Projectile(this, enemy.x + Math.cos(angle) * 24, enemy.y + Math.sin(angle) * 24, angle, texture, {
       speed,
       damage,
       pierce,
       isPlayer: false,
-      kind: texture,
-      scale: texture === "shield_wave" ? 1.2 : 1,
+      kind: extra.kind ?? texture,
+      scale: extra.scale,
+      maxDistance: extra.maxDistance,
+      facesLeft: extra.facesLeft,
+      displayWidth: extra.displayWidth,
     });
     this.projectiles.push(projectile);
-    if (texture === "rocket") AudioManager.play("shoot_akm", 0.18);
+    if (texture === "military_shell" || texture === "crop_fire_1" || texture === "rocket") AudioManager.play("shoot_akm", 0.18);
+  }
+  private updateFlamers(delta: number): void {
+    const seconds = delta / 1000;
+    for (const enemy of [...this.enemies]) {
+      if (enemy.kind !== "flamer" || !enemy.active || enemy.hp <= 0) continue;
+      const distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+      const sprite = this.getFlamerSprite(enemy.id);
+      if (distance <= enemy.attackRange) {
+        const angle = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x);
+        const offset = Math.min(95, distance * 0.5);
+        sprite.setPosition(enemy.x + Math.cos(angle) * offset, enemy.y + Math.sin(angle) * offset);
+        sprite.setRotation(angle + Math.PI);
+        sprite.setVisible(true);
+        const width = Math.min(190, Math.max(100, distance * 1.05));
+        const ratio = sprite.height / sprite.width;
+        sprite.setDisplaySize(width, width * ratio);
+        enemy.flameTickTimer -= seconds;
+        if (enemy.flameTickTimer <= 0) {
+          enemy.flameTickTimer = 0.2;
+          this.damagePlayerByPercent(0.04);
+        }
+      } else {
+        enemy.flameTickTimer = 0;
+        sprite.setVisible(false);
+      }
+    }
   }
 
+  private getFlamerSprite(id: string): Phaser.GameObjects.Sprite {
+    let sprite = this.flameSprites.get(id);
+    if (!sprite) {
+      sprite = this.add.sprite(0, 0, "crop_fire_1").setDepth(12);
+      const ratio = sprite.height / sprite.width;
+      sprite.setDisplaySize(190, 190 * ratio);
+      sprite.play("shotfire_anim", true);
+      this.flameSprites.set(id, sprite);
+    }
+    return sprite;
+  }
+
+  private updateFireZones(delta: number): void {
+    for (const zone of [...this.fireZones]) {
+      zone.remaining -= delta;
+      zone.tickTimer -= delta;
+      const distance = Phaser.Math.Distance.Between(zone.x, zone.y, this.player.x, this.player.y);
+      if (distance <= zone.radius && zone.tickTimer <= 0) {
+        zone.tickTimer += 200;
+        this.damagePlayerByPercent(0.04);
+      }
+      if (zone.remaining <= 0) {
+        zone.sprite.destroy();
+        this.fireZones = this.fireZones.filter((item) => item !== zone);
+      }
+    }
+  }
+
+  private createFireZone(x: number, y: number, radius = 90): void {
+    const sprite = this.add.sprite(x, y, "crop_burn_1").setDepth(13);
+    const ratio = sprite.height / sprite.width;
+    sprite.setDisplaySize(radius * 2, radius * 2 * ratio);
+    sprite.play("burn_anim", true);
+    this.fireZones.push({ sprite, x, y, radius, remaining: 3000, tickTimer: 0 });
+  }
+
+  private updateBossSummons(delta: number): void {
+    const seconds = delta / 1000;
+    for (const enemy of [...this.enemies]) {
+      if (enemy.kind !== "boss" || !enemy.active || enemy.hp <= 0) continue;
+      let timer = this.bossSummonTimers.get(enemy.id) ?? 15;
+      timer -= seconds;
+      if (timer <= 0) {
+        const kinds = ["soldier", "shield", "rocket", "gunner", "flamer"];
+        for (let i = 0; i < 5; i++) {
+          this.spawnEnemy(kinds[Math.floor(Math.random() * kinds.length)]);
+        }
+        this.totalStageEnemies += 5;
+        this.bossSummonTimers.set(enemy.id, 15);
+        GameBus.emit("battle:toast", { message: "赛伊德召唤了增援！", tone: "danger" });
+      } else {
+        this.bossSummonTimers.set(enemy.id, timer);
+      }
+    }
+  }
+
+  private damagePlayerByPercent(percent: number): void {
+    if (this.gameEnded) return;
+    const amount = Math.max(1, Math.ceil(this.player.maxHp * percent));
+    this.player.hp -= amount;
+    if (this.player.hp < 0) this.player.hp = 0;
+    this.player.syncToStore();
+    AudioManager.play("hurt", 0.35);
+    const hit = this.add.text(this.player.x, this.player.y - 28, `-${amount}`, { fontFamily: "sans-serif", fontSize: "14px", color: "#ff7b4f", stroke: "#111", strokeThickness: 3 }).setDepth(60);
+    this.tweens.add({ targets: hit, y: hit.y - 22, alpha: 0, duration: 420, onComplete: () => hit.destroy() });
+    if (this.player.hp <= 0) this.gameOver();
+  }
   private updateStatuses(delta: number): void {
     const seconds = delta / 1000;
     for (const enemy of [...this.enemies]) {
@@ -400,6 +524,16 @@ export class BattleScene extends Phaser.Scene {
       }
       if (enemy.stunTimer <= 0 && enemy.stunImmuneTimer > 0) enemy.stunImmuneTimer -= seconds;
       if (enemy.stunTimer > 0 && enemy.stunTimer - seconds <= 0) enemy.stunImmuneTimer = 5;
+      if (enemy.burnTimer > 0 && enemy.freezeTimer > 0) {
+        if (enemy.burnStatusToken > enemy.freezeStatusToken) enemy.setTint(0xff3d3d);
+        else enemy.setTint(0x6fb7ff);
+      } else if (enemy.burnTimer > 0) {
+        enemy.setTint(0xff3d3d);
+      } else if (enemy.freezeTimer > 0) {
+        enemy.setTint(0x6fb7ff);
+      } else {
+        enemy.clearTint();
+      }
     }
   }
 
@@ -410,16 +544,17 @@ export class BattleScene extends Phaser.Scene {
       enemy.burnStacks += bonus.burnStacks;
       enemy.burnTimer = 2;
       enemy.burnTickTimer = Math.min(enemy.burnTickTimer, 0.5);
+      enemy.burnStatusToken = ++this.statusColorToken;
     }
     if (bonus.freezeStacks > 0 && enemy.freezeImmuneTimer <= 0) {
       enemy.freezeStacks += bonus.freezeStacks;
       enemy.freezeTimer = 5;
+      enemy.freezeStatusToken = ++this.statusColorToken;
     }
     if (bonus.stunChance > 0 && enemy.stunTimer <= 0 && enemy.stunImmuneTimer <= 0 && Math.random() < bonus.stunChance) {
       enemy.stunTimer = 1.5;
     }
   }
-
   private updateProjectiles(): void {
     for (const projectile of [...this.projectiles]) {
       if (!projectile.active) {
@@ -430,15 +565,31 @@ export class BattleScene extends Phaser.Scene {
       const x = projectile.x;
       const y = projectile.y;
       if (x < 0 || y < 0 || x > WORLD || y > WORLD) {
-        if (projectile.kind === "rocket") this.explode(projectile.x, projectile.y, 70, projectile.damage);
+        this.handleProjectileArrival(projectile);
         this.removeProjectile(projectile);
         continue;
+      }
+      if (projectile.maxDistance !== undefined) {
+        const traveled = Phaser.Math.Distance.Between(projectile.startX, projectile.startY, projectile.x, projectile.y);
+        if (traveled >= projectile.maxDistance) {
+          this.handleProjectileArrival(projectile);
+          this.removeProjectile(projectile);
+          continue;
+        }
       }
       if (projectile.isPlayer) {
         this.checkPlayerProjectileHit(projectile);
       } else {
         this.checkEnemyProjectileHit(projectile);
       }
+    }
+  }
+
+  private handleProjectileArrival(projectile: Projectile): void {
+    if (projectile.kind === "military_shell" || projectile.kind === "rocket") {
+      this.explode(projectile.x, projectile.y, 70, projectile.damage);
+    } else if (projectile.kind === "flame_arrow") {
+      this.createFireZone(projectile.x, projectile.y, 90);
     }
   }
 
@@ -470,9 +621,16 @@ export class BattleScene extends Phaser.Scene {
 
   private checkEnemyProjectileHit(projectile: Projectile): void {
     const distance = Phaser.Math.Distance.Between(projectile.x, projectile.y, this.player.x, this.player.y);
-    if (projectile.kind === "rocket") {
+    if (projectile.kind === "military_shell" || projectile.kind === "rocket") {
       if (distance < 34) {
         this.explode(projectile.x, projectile.y, 70, projectile.damage);
+        this.removeProjectile(projectile);
+      }
+      return;
+    }
+    if (projectile.kind === "flame_arrow") {
+      if (distance <= 14) {
+        this.createFireZone(projectile.x, projectile.y, 90);
         this.removeProjectile(projectile);
       }
       return;
@@ -486,6 +644,11 @@ export class BattleScene extends Phaser.Scene {
   private explode(x: number, y: number, radius: number, damage: number): void {
     const distance = Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y);
     if (distance <= radius) this.damagePlayer(damage * (1 - distance / radius * 0.3), x, y);
+    const explosion = this.add.sprite(x, y, "crop_boom_1").setDepth(34);
+    const boomRatio = explosion.height / explosion.width;
+    explosion.setDisplaySize(radius * 2, radius * 2 * boomRatio);
+    explosion.play("boom_anim");
+    this.time.delayedCall(500, () => explosion.destroy());
     const ring = this.add.circle(x, y, radius, 0xff6622, 0.24).setDepth(34);
     this.tweens.add({ targets: ring, alpha: 0, scale: 1.4, duration: 260, onComplete: () => ring.destroy() });
     AudioManager.play("explosion", 0.65);
@@ -521,6 +684,11 @@ export class BattleScene extends Phaser.Scene {
     const enemyBody = enemy.body as Phaser.Physics.Arcade.Body | null;
     if (enemyBody) enemyBody.enable = false;
     this.enemyGroup.remove(enemy, false, false);
+    const flameSprite = this.flameSprites.get(enemy.id);
+    if (flameSprite) {
+      flameSprite.destroy();
+      this.flameSprites.delete(enemy.id);
+    }
     enemy.destroy();
     this.enemies = this.enemies.filter((e) => e !== enemy);
     this.emitHud();

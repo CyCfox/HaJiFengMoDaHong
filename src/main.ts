@@ -98,10 +98,8 @@ GameBus.on("battle:extracted", () => {
   ui.showAffairs();
 });
 GameBus.on("battle:gameover", () => {
-  const level = store.getState().level;
-  const clearedLevels = store.getState().clearedLevels;
   if (SaveGateway.getCurrentUser()) {
-    void SaveGateway.resetAfterDeath(level, clearedLevels).catch(() => {
+    void SaveGateway.resetAfterDeath(1, 0).catch(() => {
       ui.toast("死亡存档重置失败，下次登录可能恢复旧状态", "warning");
     });
   }

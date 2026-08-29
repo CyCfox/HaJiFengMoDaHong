@@ -114,6 +114,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   burnTimer = 0;
   burnTickTimer = 0;
   burnImmuneTimer = 0;
+  flameTickTimer = 0;
+  burnStatusToken = 0;
+  freezeStatusToken = 0;
   freezeStacks = 0;
   freezeTimer = 0;
   freezeImmuneTimer = 0;
@@ -141,7 +144,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setDepth(config.isBoss ? 30 : 15);
-    const targetWidth = config.isBoss ? 56 : config.kind === "flamer" ? 38 : 34;
+    const targetWidth = config.isBoss ? 64 : config.kind === "flamer" ? 46 : config.kind === "shield" ? 46 : (config.kind === "rocket" || config.kind === "gunner") ? 44 : 34;
     const ratio = this.height / this.width;
     this.setDisplaySize(targetWidth, targetWidth * ratio);
     this.setOrigin(0.5, 0.82);
@@ -301,10 +304,18 @@ export class Projectile extends Phaser.GameObjects.Image {
   readonly isPlayer: boolean;
   readonly kind: string;
   readonly ownerWeaponId: string;
+  readonly startX: number;
+  readonly startY: number;
+  readonly maxDistance?: number;
+  readonly facesLeft: boolean;
   hitEnemies = new Set<string>();
 
-  constructor(scene: Phaser.Scene, x: number, y: number, angle: number, texture: string, options: { speed: number; damage: number; pierce: number; isPlayer: boolean; kind: string; ownerWeaponId?: string; scale?: number }) {
+  constructor(scene: Phaser.Scene, x: number, y: number, angle: number, texture: string, options: { speed: number; damage: number; pierce: number; isPlayer: boolean; kind: string; ownerWeaponId?: string; scale?: number; maxDistance?: number; facesLeft?: boolean; displayWidth?: number }) {
     super(scene, x, y, texture);
+    this.startX = x;
+    this.startY = y;
+    this.maxDistance = options.maxDistance;
+    this.facesLeft = options.facesLeft ?? false;
     this.dir = new Phaser.Math.Vector2(Math.cos(angle), Math.sin(angle));
     this.speed = options.speed;
     this.damage = options.damage;
@@ -318,13 +329,15 @@ export class Projectile extends Phaser.GameObjects.Image {
     body.setVelocity(this.dir.x * this.speed, this.dir.y * this.speed);
     body.setAllowGravity(false);
     this.setDepth(options.isPlayer ? 25 : 14);
-    if (options.scale) this.setScale(options.scale);
+    if (options.displayWidth) {
+      const ratio = this.height / this.width;
+      this.setDisplaySize(options.displayWidth, options.displayWidth * ratio);
+    } else if (options.scale) {
+      this.setScale(options.scale);
+    }
   }
 
   update(): void {
-    this.rotation = this.dir.angle();
+    this.rotation = this.dir.angle() + (this.facesLeft ? Math.PI : 0);
   }
 }
-
-
-

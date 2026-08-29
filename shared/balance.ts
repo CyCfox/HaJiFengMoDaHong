@@ -47,7 +47,6 @@ export const WEAPON_UPGRADES: Array<{
   { key: "range", label: "射程", growth: 0.05 },
   { key: "fireRate", label: "射速", growth: 0.05 },
   { key: "damage", label: "伤害", growth: 0.10 },
-  { key: "pellets", label: "弹数", growth: 1 },
 ];
 
 export const COLLECTIONS: CollectionConfig[] = [
@@ -74,6 +73,7 @@ export const BUFFS: BuffConfig[] = [
   { id: "speed10", name: "蜂翼疾行", category: "attribute", description: "移动速度 +10%", stackable: true, icon: "⚡" },
   { id: "bag10", name: "蜂巢扩容", category: "attribute", description: "背包容量 +10", stackable: true, icon: "🎒" },
   { id: "bag5", name: "储物蜂房", category: "attribute", description: "背包容量 +5", stackable: true, icon: "🗂" },
+  { id: "load6", name: "重力蜂环", category: "attribute", description: "负重 +6", stackable: true, icon: "🧱" },
   { id: "damage15", name: "蜂刺淬炼", category: "attribute", description: "武器伤害 +15%", stackable: true, icon: "🔨" },
   { id: "fireRate8", name: "蜂群节奏", category: "attribute", description: "武器射速 +8%", stackable: true, icon: "🎶" },
   { id: "magnet", name: "自动磁吸", category: "function", description: "拾取距离显著提高", stackable: false, icon: "🧲" },
@@ -89,10 +89,10 @@ export const BUFFS: BuffConfig[] = [
 
 export const ENEMIES: Record<string, EnemyConfig> = {
   soldier: { kind: "soldier", name: "阿萨拉小兵", asset: "assets/characters/AShaLaXiaoBin/阿萨拉小兵.png", baseHp: 50, moveSpeed: 105, range: 380, fireRate: 0.55, damage: 7, pellets: 3, radius: 12, isElite: false, isBoss: false, dropChance: 0.30 },
-  shield: { kind: "shield", name: "阿萨拉盾兵", asset: "assets/characters/AShaLaDunBin/阿萨拉盾兵.png", baseHp: 180, moveSpeed: 70, range: 130, fireRate: 0.8, damage: 14, pellets: 1, radius: 18, isElite: true, isBoss: false, dropChance: 0.55 },
-  rocket: { kind: "rocket", name: "阿萨拉火箭兵", asset: "assets/characters/AShaLaHuoJianBin/阿萨拉火箭兵.png", baseHp: 110, moveSpeed: 85, range: 540, fireRate: 0.35, damage: 22, pellets: 1, radius: 14, isElite: true, isBoss: false, dropChance: 0.55 },
-  gunner: { kind: "gunner", name: "阿萨拉机枪兵", asset: "assets/characters/AShaLaJiQiangBin/阿萨拉机枪兵.png", baseHp: 140, moveSpeed: 75, range: 540, fireRate: 2.4, damage: 5, pellets: 1, radius: 16, isElite: true, isBoss: false, dropChance: 0.55 },
-  flamer: { kind: "flamer", name: "阿萨拉喷火兵", asset: "assets/characters/AShaLaPenHuoBin/阿萨拉喷火兵.png", baseHp: 130, moveSpeed: 88, range: 190, fireRate: 8, damage: 3, pellets: 1, radius: 16, isElite: true, isBoss: false, dropChance: 0.55 },
+  shield: { kind: "shield", name: "阿萨拉盾兵", asset: "assets/characters/AShaLaDunBin/阿萨拉盾兵.png", baseHp: 180, moveSpeed: 70, range: 300, fireRate: 0.8, damage: 14, pellets: 1, radius: 22, isElite: true, isBoss: false, dropChance: 0.55 },
+  rocket: { kind: "rocket", name: "阿萨拉火箭兵", asset: "assets/characters/AShaLaHuoJianBin/阿萨拉火箭兵.png", baseHp: 110, moveSpeed: 85, range: 540, fireRate: 0.35, damage: 50, pellets: 1, radius: 18, isElite: true, isBoss: false, dropChance: 0.55 },
+  gunner: { kind: "gunner", name: "阿萨拉机枪兵", asset: "assets/characters/AShaLaJiQiangBin/阿萨拉机枪兵.png", baseHp: 140, moveSpeed: 75, range: 540, fireRate: 2.4, damage: 10, pellets: 1, radius: 20, isElite: true, isBoss: false, dropChance: 0.55 },
+  flamer: { kind: "flamer", name: "阿萨拉喷火兵", asset: "assets/characters/AShaLaPenHuoBin/阿萨拉喷火兵.png", baseHp: 130, moveSpeed: 88, range: 190, fireRate: 8, damage: 3, pellets: 1, radius: 20, isElite: true, isBoss: false, dropChance: 0.55 },
   boss: { kind: "boss", name: "卫队长官赛伊德", asset: "assets/characters/SaiYiDe/赛伊德.png", baseHp: 3000, moveSpeed: 65, range: 650, fireRate: 0.9, damage: 22, pellets: 5, radius: 26, isElite: true, isBoss: true, dropChance: 1.0 },
 };
 

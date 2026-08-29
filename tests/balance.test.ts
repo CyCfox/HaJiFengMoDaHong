@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUFFS, COLLECTIONS, WEAPONS, WEAPON_ORDER } from "../shared/balance";
+import { BUFFS, COLLECTIONS, ENEMIES, WEAPONS, WEAPON_ORDER, WEAPON_UPGRADES } from "../shared/balance";
 import { COLLECTION_META } from "../shared/collection-meta.mjs";
 import {
   getDrawCost, getEnemyComposition, getEnemyMultipliers, getEquippedWeight, getUpgradeCost,
@@ -31,6 +31,27 @@ describe("enemy composition", () => {
 });
 
 describe("weapon calculations and store behavior", () => {
+  it("resets death restart to level 1 while keeping collection data", () => {
+    store.resetRun();
+    store.getState().level = 8;
+    store.getState().clearedLevels = 7;
+    store.setCollectionLevels({ gold_bar: 3 }, 999);
+    store.resetRun();
+    expect(store.getState().level).toBe(1);
+    expect(store.getState().clearedLevels).toBe(0);
+    expect(store.getCollectionLevel("gold_bar")).toBe(3);
+  });
+
+  it("removes direct pellet upgrades and keeps them only as buffs", () => {
+    expect(WEAPON_UPGRADES.map((item) => item.key)).toEqual(["range", "fireRate", "damage"]);
+    const instance = createWeaponInstance("g18", 1);
+    instance.levels.pellets = 9;
+    expect(getWeaponStats(instance).pellets).toBe(1);
+    store.resetRun();
+    store.applyBuff("pellet1");
+    expect(store.weaponStats(instance).pellets).toBe(2);
+  });
+
   it("keeps requested prices and sale price", () => {
     expect(WEAPONS.g18.price).toBe(120000);
     expect(WEAPONS.awm.price).toBe(2300000);
@@ -63,6 +84,10 @@ describe("weapon calculations and store behavior", () => {
     }
     expect(store.getState().ownedWeapons.filter((w) => w.equipped).length).toBe(7);
     expect(getEquippedWeight(store.getState().ownedWeapons)).toBe(21);
+    expect(store.getState().loadCapacity).toBe(18);
+    store.applyBuff("load6");
+    store.applyBuff("load6");
+    expect(store.getState().loadCapacity).toBe(30);
   });
 
   it("cannot sell or unequip the final equipped weapon but can sell G18 when another remains", () => {
@@ -116,10 +141,17 @@ describe("drawing and buffs", () => {
     expect(bonus.redChance).toBe(1);
   });
 
-  it("has exactly the 16 specified buffs and 15 collections", () => {
-    expect(BUFFS).toHaveLength(16);
+  it("has exactly the 17 specified buffs and 15 collections", () => {
+    expect(BUFFS).toHaveLength(17);
+    expect(BUFFS.find((b) => b.id === "load6")?.description).toBe("负重 +6");
     expect(COLLECTIONS).toHaveLength(15);
     expect(WEAPON_ORDER).toHaveLength(4);
+  });
+
+  it("matches current enemy skill tuning", () => {
+    expect(ENEMIES.shield.range).toBe(300);
+    expect(ENEMIES.rocket.damage).toBe(50);
+    expect(ENEMIES.gunner.damage).toBe(10);
   });
 
   it("keeps backend collection meta in sync with game balance", () => {

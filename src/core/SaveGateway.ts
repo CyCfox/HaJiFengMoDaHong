@@ -47,9 +47,9 @@ class SaveGatewayImpl {
         return null;
       }
       if (!res.ok) return null;
-      const data = (await res.json()) as { user: AuthUser; profile: PlayerProfile };
+      const data = (await res.json()) as { user: AuthUser | null; profile: PlayerProfile | null };
       this.currentUser = data.user;
-      return data;
+      return data.user ? (data as { user: AuthUser; profile: PlayerProfile }) : null;
     } catch {
       this.currentUser = null;
       return null;
