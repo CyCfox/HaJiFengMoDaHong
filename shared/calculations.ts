@@ -78,12 +78,13 @@ export function getBuffStack(buffs: BuffStack[], id: BuffId): number {
 }
 
 export function getBuffBonus(buffs: BuffStack[]): {
-  hp: number; armor: number; speedMultiplier: number; backpack: number; load: number; damageMultiplier: number; fireRateBonus: number;
+  hp: number; armor: number; armorRegenPercent: number; speedMultiplier: number; backpack: number; load: number; damageMultiplier: number; fireRateBonus: number;
   pickupMagnet: boolean; extraPellets: number; extraPierce: number; containerExtra: number; redChance: number; lifesteal: number; stunChance: number; burnStacks: number; freezeStacks: number;
 } {
   return {
-    hp: 20 * getBuffStack(buffs, "hp20"),
-    armor: 25 * getBuffStack(buffs, "armor25"),
+    hp: 50 * getBuffStack(buffs, "hp20"),
+    armor: 30 * getBuffStack(buffs, "armor25"),
+    armorRegenPercent: 0.05 * getBuffStack(buffs, "armorRegen"),
     speedMultiplier: 1 + 0.10 * getBuffStack(buffs, "speed10"),
     backpack: 10 * getBuffStack(buffs, "bag10") + 5 * getBuffStack(buffs, "bag5"),
     load: 6 * getBuffStack(buffs, "load6"),

@@ -55,7 +55,7 @@ export interface ContainerConfig {
 }
 
 export type BuffId =
-  | "hp20" | "armor25" | "speed10" | "bag10" | "bag5" | "load6" | "damage15" | "fireRate8"
+  | "hp20" | "armor25" | "speed10" | "bag10" | "bag5" | "load6" | "armorRegen" | "damage15" | "fireRate8"
   | "magnet" | "pellet1" | "pierce1" | "containerExtra" | "redChance"
   | "burn" | "freeze" | "lifesteal2" | "stun";
 

@@ -232,6 +232,7 @@ export class SpecialAffairsView {
       buyGrid.appendChild(card);
     });
     buyScroll.appendChild(buyGrid);
+    buyScroll.addEventListener("scroll", () => { this.content.dataset.tradeBuyScroll = String(buyScroll.scrollTop); });
     buyColumn.appendChild(buyScroll);
 
     const ownedColumn = el("div", "trade-column owned-column");
@@ -241,10 +242,17 @@ export class SpecialAffairsView {
     state.ownedWeapons.forEach((weapon) => {
       ownedList.appendChild(this.weaponInstanceCard(weapon, state));
     });
+    ownedList.addEventListener("scroll", () => { this.content.dataset.tradeOwnedScroll = String(ownedList.scrollTop); });
     ownedColumn.appendChild(ownedList);
 
     layout.append(buyColumn, ownedColumn);
     this.content.appendChild(layout);
+    const savedBuy = Number(this.content.dataset.tradeBuyScroll ?? "0");
+    const savedOwned = Number(this.content.dataset.tradeOwnedScroll ?? "0");
+    window.setTimeout(() => {
+      buyScroll.scrollTop = savedBuy;
+      ownedList.scrollTop = savedOwned;
+    }, 50);
   }
   private weaponInstanceCard(weapon: WeaponInstance, state: RunState): HTMLElement {
     const config = getWeaponConfig(weapon.kind);
@@ -261,7 +269,7 @@ export class SpecialAffairsView {
     equip.addEventListener("click", () => {
       const ok = weapon.equipped ? store.unequipWeapon(weapon.id) : store.equipWeapon(weapon.id);
       AudioManager.play(ok ? "equip" : "denied");
-      if (!ok && !weapon.equipped) toast(this.root, "装备后总重量超过负重，无法装备", "warning");
+      if (!ok && !weapon.equipped) toast(this.root, "装备后超出负重，无法携带", "warning");
       if (!ok && weapon.equipped) toast(this.root, "必须至少保留一把已装备武器", "warning");
       this.render();
     });
@@ -404,7 +412,7 @@ export class SpecialAffairsView {
       if (lit && collection.rarity !== "red") {
         card.appendChild(el("div", "lit-badge", "已点亮"));
       } else if (lit && collection.rarity === "red") {
-        const submit = el("button", "small-button gold", loggedIn ? "再次提交 +1级" : "登录后升级");
+        const submit = el("button", "small-button gold", loggedIn ? "升级展柜" : "登录后升级");
         submit.disabled = count < 1 || !loggedIn;
         submit.addEventListener("click", async () => {
           if (!loggedIn) {

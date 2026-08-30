@@ -50,15 +50,15 @@ export const WEAPON_UPGRADES: Array<{
 ];
 
 export const COLLECTIONS: CollectionConfig[] = [
-  { id: "maiden_pendant", name: "女郎吊坠", asset: "assets/collections/carton/女郎吊坠.png", rarity: "blue", price: 12000, slots: 1, redWeight: 0 },
+  { id: "maiden_pendant", name: "女郎吊坠", asset: "assets/collections/carton/女郎吊坠.png", rarity: "blue", price: 12000, slots: 2, redWeight: 0 },
   { id: "ox_horn", name: "牛角", asset: "assets/collections/carton/牛角.png", rarity: "purple", price: 18000, slots: 2, redWeight: 0 },
   { id: "asala_cup", name: "阿萨拉酒杯", asset: "assets/collections/carton/阿萨拉酒杯.png", rarity: "gold", price: 63296, slots: 1, redWeight: 0 },
-  { id: "saied_watch", name: "赛伊德怀表", asset: "assets/collections/carton/赛伊德怀表.png", rarity: "red", price: 216831, slots: 2, redWeight: 18 },
-  { id: "gold_bar", name: "万足金条", asset: "assets/collections/carton/万足金条.png", rarity: "red", price: 333903, slots: 4, redWeight: 16 },
+  { id: "saied_watch", name: "赛伊德怀表", asset: "assets/collections/carton/赛伊德怀表.png", rarity: "red", price: 216831, slots: 1, redWeight: 18 },
+  { id: "gold_bar", name: "万足金条", asset: "assets/collections/carton/万足金条.png", rarity: "red", price: 333903, slots: 2, redWeight: 16 },
   { id: "golden_gazelle", name: "黄金瞪羚", asset: "assets/collections/carton/黄金瞪羚.png", rarity: "red", price: 455560, slots: 4, redWeight: 15 },
   { id: "musket_exhibit", name: "滑膛枪展品", asset: "assets/collections/carton/滑膛枪展品.png", rarity: "red", price: 669130, slots: 4, redWeight: 14 },
-  { id: "gramophone", name: "留声机", asset: "assets/collections/carton/留声机.png", rarity: "red", price: 1282036, slots: 4, redWeight: 12 },
-  { id: "bust", name: "半身像", asset: "assets/collections/carton/半身像.png", rarity: "red", price: 1326548, slots: 3, redWeight: 10 },
+  { id: "gramophone", name: "留声机", asset: "assets/collections/carton/留声机.png", rarity: "red", price: 1282036, slots: 6, redWeight: 12 },
+  { id: "bust", name: "半身像", asset: "assets/collections/carton/半身像.png", rarity: "red", price: 1326548, slots: 6, redWeight: 10 },
   { id: "impressionist_painting", name: "印象派名画", asset: "assets/collections/carton/印象派名画.png", rarity: "red", price: 2105569, slots: 9, redWeight: 7 },
   { id: "tank_model", name: "主战坦克模型", asset: "assets/collections/carton/主战坦克模型.png", rarity: "red", price: 2142119, slots: 9, redWeight: 6 },
   { id: "weeping_crown", name: "万金泪冠", asset: "assets/collections/carton/万金泪冠.png", rarity: "red", price: 3184882, slots: 9, redWeight: 4 },
@@ -68,12 +68,13 @@ export const COLLECTIONS: CollectionConfig[] = [
 ];
 
 export const BUFFS: BuffConfig[] = [
-  { id: "hp20", name: "蜂王体质", category: "attribute", description: "最大生命 +20", stackable: true, icon: "♥" },
-  { id: "armor25", name: "黄蜂装甲", category: "attribute", description: "最大护甲 +25", stackable: true, icon: "🛡" },
+  { id: "hp20", name: "蜂王体质", category: "attribute", description: "最大生命 +50", stackable: true, icon: "♥" },
+  { id: "armor25", name: "黄蜂装甲", category: "attribute", description: "最大护甲 +30", stackable: true, icon: "🛡" },
   { id: "speed10", name: "蜂翼疾行", category: "attribute", description: "移动速度 +10%", stackable: true, icon: "⚡" },
   { id: "bag10", name: "蜂巢扩容", category: "attribute", description: "背包容量 +10", stackable: true, icon: "🎒" },
   { id: "bag5", name: "储物蜂房", category: "attribute", description: "背包容量 +5", stackable: true, icon: "🗂" },
   { id: "load6", name: "重力蜂环", category: "attribute", description: "负重 +6", stackable: true, icon: "🧱" },
+  { id: "armorRegen", name: "能工巧匠", category: "function", description: "2秒未受伤后，每秒恢复最大护甲5%", stackable: true, icon: "🔧" },
   { id: "damage15", name: "蜂刺淬炼", category: "attribute", description: "武器伤害 +15%", stackable: true, icon: "🔨" },
   { id: "fireRate8", name: "蜂群节奏", category: "attribute", description: "武器射速 +8%", stackable: true, icon: "🎶" },
   { id: "magnet", name: "自动磁吸", category: "function", description: "拾取距离显著提高", stackable: false, icon: "🧲" },
@@ -89,10 +90,10 @@ export const BUFFS: BuffConfig[] = [
 
 export const ENEMIES: Record<string, EnemyConfig> = {
   soldier: { kind: "soldier", name: "阿萨拉小兵", asset: "assets/characters/AShaLaXiaoBin/阿萨拉小兵.png", baseHp: 50, moveSpeed: 105, range: 380, fireRate: 0.55, damage: 7, pellets: 3, radius: 12, isElite: false, isBoss: false, dropChance: 0.30 },
-  shield: { kind: "shield", name: "阿萨拉盾兵", asset: "assets/characters/AShaLaDunBin/阿萨拉盾兵.png", baseHp: 180, moveSpeed: 70, range: 300, fireRate: 0.8, damage: 14, pellets: 1, radius: 22, isElite: true, isBoss: false, dropChance: 0.55 },
-  rocket: { kind: "rocket", name: "阿萨拉火箭兵", asset: "assets/characters/AShaLaHuoJianBin/阿萨拉火箭兵.png", baseHp: 110, moveSpeed: 85, range: 540, fireRate: 0.35, damage: 50, pellets: 1, radius: 22, isElite: true, isBoss: false, dropChance: 0.55 },
-  gunner: { kind: "gunner", name: "阿萨拉机枪兵", asset: "assets/characters/AShaLaJiQiangBin/阿萨拉机枪兵.png", baseHp: 140, moveSpeed: 75, range: 540, fireRate: 2.4, damage: 10, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
-  flamer: { kind: "flamer", name: "阿萨拉喷火兵", asset: "assets/characters/AShaLaPenHuoBin/阿萨拉喷火兵.png", baseHp: 130, moveSpeed: 88, range: 190, fireRate: 8, damage: 3, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
+  shield: { kind: "shield", name: "阿萨拉盾兵", asset: "assets/characters/AShaLaDunBin/阿萨拉盾兵.png", baseHp: 200, moveSpeed: 70, range: 300, fireRate: 0.8, damage: 14, pellets: 1, radius: 22, isElite: true, isBoss: false, dropChance: 0.55 },
+  rocket: { kind: "rocket", name: "阿萨拉火箭兵", asset: "assets/characters/AShaLaHuoJianBin/阿萨拉火箭兵.png", baseHp: 150, moveSpeed: 85, range: 540, fireRate: 0.35, damage: 50, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
+  gunner: { kind: "gunner", name: "阿萨拉机枪兵", asset: "assets/characters/AShaLaJiQiangBin/阿萨拉机枪兵.png", baseHp: 300, moveSpeed: 75, range: 540, fireRate: 2.4, damage: 10, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
+  flamer: { kind: "flamer", name: "阿萨拉喷火兵", asset: "assets/characters/AShaLaPenHuoBin/阿萨拉喷火兵.png", baseHp: 250, moveSpeed: 88, range: 250, fireRate: 8, damage: 3, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
   boss: { kind: "boss", name: "卫队长官赛伊德", asset: "assets/characters/SaiYiDe/赛伊德.png", baseHp: 3000, moveSpeed: 65, range: 650, fireRate: 0.9, damage: 22, pellets: 5, radius: 26, isElite: true, isBoss: true, dropChance: 1.0 },
 };
 

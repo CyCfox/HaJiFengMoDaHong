@@ -316,7 +316,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.projectiles.length + count > MAX_PLAYER_PROJECTILES) return;
     const angle = mount.aimAngle;
     const spread = count > 1 ? 0.14 / Math.max(1, count - 1) : 0;
-    const speeds: Record<string, number> = { g18: 720, uzi: 850, akm: 780, awm: 1180 };
+    const speeds: Record<string, number> = { g18: 700, uzi: 800, akm: 900, awm: 1200 };
     for (let i = 0; i < count; i++) {
       const a = angle + (i - (count - 1) / 2) * spread;
       const texture = `bullet_${mount.configKey}`;
@@ -409,17 +409,17 @@ export class BattleScene extends Phaser.Scene {
       const sprite = this.getFlamerSprite(enemy.id);
       if (distance <= enemy.attackRange) {
         const angle = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x);
-        const offset = Math.min(95, distance * 0.5);
+        const offset = Math.min(enemy.attackRange * 0.5, distance * 0.5);
         sprite.setPosition(enemy.x + Math.cos(angle) * offset, enemy.y + Math.sin(angle) * offset);
         sprite.setRotation(angle + Math.PI);
         sprite.setVisible(true);
-        const width = Math.min(190, Math.max(100, distance * 1.05));
+        const width = Math.min(enemy.attackRange, Math.max(100, distance * 1.05));
         const ratio = sprite.height / sprite.width;
         sprite.setDisplaySize(width, width * ratio);
         enemy.flameTickTimer -= seconds;
         if (enemy.flameTickTimer <= 0) {
           enemy.flameTickTimer = 0.2;
-          this.damagePlayerByPercent(0.04);
+          this.damagePlayerByPercent(0.02);
         }
       } else {
         enemy.flameTickTimer = 0;
@@ -433,7 +433,7 @@ export class BattleScene extends Phaser.Scene {
     if (!sprite) {
       sprite = this.add.sprite(0, 0, "crop_fire_1").setDepth(12);
       const ratio = sprite.height / sprite.width;
-      sprite.setDisplaySize(190, 190 * ratio);
+      sprite.setDisplaySize(250, 250 * ratio);
       sprite.play("shotfire_anim", true);
       this.flameSprites.set(id, sprite);
     }
@@ -447,7 +447,7 @@ export class BattleScene extends Phaser.Scene {
       const distance = Phaser.Math.Distance.Between(zone.x, zone.y, this.player.x, this.player.y);
       if (distance <= zone.radius && zone.tickTimer <= 0) {
         zone.tickTimer += 200;
-        this.damagePlayerByPercent(0.04);
+        this.damagePlayerByPercent(0.02);
       }
       if (zone.remaining <= 0) {
         zone.sprite.destroy();
@@ -487,6 +487,7 @@ export class BattleScene extends Phaser.Scene {
   private damagePlayerByPercent(percent: number): void {
     if (this.gameEnded) return;
     const amount = Math.max(1, Math.ceil(this.player.maxHp * percent));
+    this.armorRegenTimer = 0;
     this.player.hp -= amount;
     if (this.player.hp < 0) this.player.hp = 0;
     this.player.syncToStore();
@@ -908,13 +909,15 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateArmorRegen(delta: number): void {
+    const bonus = getBuffBonus(store.getState().buffs);
+    if (bonus.armorRegenPercent <= 0) return;
     this.armorRegenTimer += delta / 1000;
-    if (this.armorRegenTimer > 4 && this.player.armor < this.player.maxArmor) {
-      this.player.armor = Math.min(this.player.maxArmor, this.player.armor + delta / 1000 * 4);
+    if (this.armorRegenTimer >= 2 && this.player.armor < this.player.maxArmor) {
+      const regen = this.player.maxArmor * bonus.armorRegenPercent * delta / 1000;
+      this.player.armor = Math.min(this.player.maxArmor, this.player.armor + regen);
       this.player.syncToStore();
     }
   }
-
   private gameOver(): void {
     if (this.gameEnded) return;
     this.gameEnded = true;

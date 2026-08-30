@@ -91,6 +91,8 @@ describe("weapon calculations and store behavior", () => {
     store.applyBuff("load6");
     store.applyBuff("load6");
     expect(store.getState().loadCapacity).toBe(30);
+    store.applyBuff("armorRegen");
+    expect(getBuffBonus(store.getState().buffs).armorRegenPercent).toBe(0.05);
   });
 
   it("cannot sell or unequip the final equipped weapon but can sell G18 when another remains", () => {
@@ -140,21 +142,27 @@ describe("drawing and buffs", () => {
     store.applyBuff("hp20");
     store.applyBuff("redChance");
     const bonus = getBuffBonus(store.getState().buffs);
-    expect(bonus.hp).toBe(40);
+    expect(bonus.hp).toBe(100);
     expect(bonus.redChance).toBe(1);
   });
 
-  it("has exactly the 17 specified buffs and 15 collections", () => {
-    expect(BUFFS).toHaveLength(17);
+  it("has exactly the 18 specified buffs and 15 collections", () => {
+    expect(BUFFS).toHaveLength(18);
     expect(BUFFS.find((b) => b.id === "load6")?.description).toBe("负重 +6");
+    expect(BUFFS.find((b) => b.id === "armorRegen")?.description).toBe("2秒未受伤后，每秒恢复最大护甲5%");
     expect(COLLECTIONS).toHaveLength(15);
     expect(WEAPON_ORDER).toHaveLength(4);
   });
 
   it("matches current enemy skill tuning", () => {
     expect(ENEMIES.shield.range).toBe(300);
+    expect(ENEMIES.shield.baseHp).toBe(200);
     expect(ENEMIES.rocket.damage).toBe(50);
+    expect(ENEMIES.rocket.baseHp).toBe(150);
     expect(ENEMIES.gunner.damage).toBe(10);
+    expect(ENEMIES.gunner.baseHp).toBe(300);
+    expect(ENEMIES.flamer.baseHp).toBe(250);
+    expect(ENEMIES.flamer.range).toBe(250);
   });
 
   it("keeps backend collection meta in sync with game balance", () => {
