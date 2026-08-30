@@ -27,17 +27,21 @@ export const WEAPONS: Record<string, WeaponConfig> = {
     kind: "uzi", name: "UZI 冲锋枪", asset: "assets/weapons/carton/UZI冲锋枪.png",
     price: 350000, baseRange: 520, baseFireRate: 7.5, baseDamage: 6, basePellets: 1, pierce: 0, weight: 5, color: 0x38e3c0,
   },
+  f12: {
+    kind: "f12", name: "F12 霰弹枪", asset: "assets/weapons/carton/F12霰弹枪.png",
+    price: 650000, baseRange: 320, baseFireRate: 1.25, baseDamage: 18, basePellets: 3, pierce: 0, weight: 7, color: 0x62d76a,
+  },
   akm: {
     kind: "akm", name: "AKM 突击步枪", asset: "assets/weapons/carton/AKM突击步枪.png",
     price: 810000, baseRange: 680, baseFireRate: 4.5, baseDamage: 16, basePellets: 1, pierce: 0, weight: 8, color: 0xff9c3f,
   },
   awm: {
     kind: "awm", name: "AWM 狙击步枪", asset: "assets/weapons/carton/AWM狙击步枪.png",
-    price: 2300000, baseRange: 920, baseFireRate: 0.5, baseDamage: 150, basePellets: 1, pierce: 4, weight: 15, color: 0x6be5ff,
+    price: 2300000, baseRange: 920, baseFireRate: 0.5, baseDamage: 150, basePellets: 1, pierce: 2, weight: 15, color: 0x6be5ff,
   },
 };
 
-export const WEAPON_ORDER: WeaponKind[] = ["g18", "uzi", "akm", "awm"];
+export const WEAPON_ORDER: WeaponKind[] = ["g18", "uzi", "f12", "akm", "awm"];
 
 export const WEAPON_UPGRADES: Array<{
   key: WeaponUpgradeKey;
@@ -77,9 +81,8 @@ export const BUFFS: BuffConfig[] = [
   { id: "armorRegen", name: "能工巧匠", category: "function", description: "2秒未受伤后，每秒恢复最大护甲5%", stackable: true, icon: "🔧" },
   { id: "damage15", name: "蜂刺淬炼", category: "attribute", description: "武器伤害 +15%", stackable: true, icon: "🔨" },
   { id: "fireRate8", name: "蜂群节奏", category: "attribute", description: "武器射速 +8%", stackable: true, icon: "🎶" },
-  { id: "magnet", name: "自动磁吸", category: "function", description: "拾取距离显著提高", stackable: false, icon: "🧲" },
-  { id: "pellet1", name: "额外弹巢", category: "function", description: "所有武器弹数 +1", stackable: true, icon: "✚" },
-  { id: "pierce1", name: "贯穿蜂针", category: "function", description: "所有子弹贯穿 +1", stackable: true, icon: "➤" },
+  { id: "pellet1", name: "额外弹巢", category: "function", description: "所有霰弹枪弹数 +1", stackable: true, icon: "✚" },
+  { id: "pierce1", name: "贯穿蜂针", category: "function", description: "所有狙击枪子弹贯穿 +1", stackable: true, icon: "➤" },
   { id: "containerExtra", name: "富饶保险箱", category: "function", description: "容器额外掉落 1 次", stackable: true, icon: "📦" },
   { id: "redChance", name: "幸运蜂吻", category: "function", description: "红色藏品概率 +1%", stackable: true, icon: "🍀" },
   { id: "burn", name: "燃烧蜂刺", category: "status", description: "命中燃烧：每0.5秒扣1%最大生命，持续2秒", stackable: true, icon: "🔥" },
@@ -92,7 +95,7 @@ export const ENEMIES: Record<string, EnemyConfig> = {
   soldier: { kind: "soldier", name: "阿萨拉小兵", asset: "assets/characters/AShaLaXiaoBin/阿萨拉小兵.png", baseHp: 50, moveSpeed: 105, range: 380, fireRate: 0.55, damage: 7, pellets: 3, radius: 12, isElite: false, isBoss: false, dropChance: 0.30 },
   shield: { kind: "shield", name: "阿萨拉盾兵", asset: "assets/characters/AShaLaDunBin/阿萨拉盾兵.png", baseHp: 200, moveSpeed: 70, range: 300, fireRate: 0.8, damage: 14, pellets: 1, radius: 22, isElite: true, isBoss: false, dropChance: 0.55 },
   rocket: { kind: "rocket", name: "阿萨拉火箭兵", asset: "assets/characters/AShaLaHuoJianBin/阿萨拉火箭兵.png", baseHp: 150, moveSpeed: 85, range: 540, fireRate: 0.35, damage: 50, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
-  gunner: { kind: "gunner", name: "阿萨拉机枪兵", asset: "assets/characters/AShaLaJiQiangBin/阿萨拉机枪兵.png", baseHp: 300, moveSpeed: 75, range: 540, fireRate: 2.4, damage: 10, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
+  gunner: { kind: "gunner", name: "阿萨拉机枪兵", asset: "assets/characters/AShaLaJiQiangBin/阿萨拉机枪兵.png", baseHp: 300, moveSpeed: 75, range: 540, fireRate: 2.4, damage: 10, pellets: 1, radius: 26, isElite: true, isBoss: false, dropChance: 0.55 },
   flamer: { kind: "flamer", name: "阿萨拉喷火兵", asset: "assets/characters/AShaLaPenHuoBin/阿萨拉喷火兵.png", baseHp: 250, moveSpeed: 88, range: 250, fireRate: 8, damage: 3, pellets: 1, radius: 24, isElite: true, isBoss: false, dropChance: 0.55 },
   boss: { kind: "boss", name: "卫队长官赛伊德", asset: "assets/characters/SaiYiDe/赛伊德.png", baseHp: 3000, moveSpeed: 65, range: 650, fireRate: 0.9, damage: 22, pellets: 5, radius: 26, isElite: true, isBoss: true, dropChance: 1.0 },
 };
@@ -117,6 +120,6 @@ export const HIGH_TIER_RED_IDS = new Set(["impressionist_painting", "tank_model"
 
 export const DRAW_BASE_COST = 50000;
 export const DRAW_FACTOR = 2;
-export const BUFF_UNIQUE_IDS: BuffId[] = ["magnet"];
+export const BUFF_UNIQUE_IDS: BuffId[] = [];
 
 

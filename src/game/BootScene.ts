@@ -94,6 +94,7 @@ export class BootScene extends Phaser.Scene {
     const specs = [
       { key: "bullet_g18", color: 0xffd54a, width: 14, height: 4 },
       { key: "bullet_uzi", color: 0x38e3c0, width: 10, height: 3 },
+      { key: "bullet_f12", color: 0x62d76a, width: 16, height: 5 },
       { key: "bullet_akm", color: 0xff9c3f, width: 16, height: 5 },
       { key: "bullet_awm", color: 0xff3b3b, width: 24, height: 6 },
       { key: "enemy_bullet", color: 0xf4d23c, width: 10, height: 4 },

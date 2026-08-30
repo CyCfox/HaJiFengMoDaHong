@@ -154,7 +154,7 @@ class RunStore {
     this.state.moveSpeed = PLAYER_BASE.moveSpeed * bonus.speedMultiplier;
     this.state.backpackCapacity = PLAYER_BASE.backpackCapacity + bonus.backpack;
     this.state.loadCapacity = PLAYER_BASE.loadCapacity + bonus.load;
-    this.state.pickupRadius = PLAYER_BASE.pickupRadius + (bonus.pickupMagnet ? 80 : 0);
+    this.state.pickupRadius = PLAYER_BASE.pickupRadius;
     if (this.state.currentHp > this.state.maxHp) this.state.currentHp = this.state.maxHp;
     if (this.state.currentArmor > this.state.maxArmor) this.state.currentArmor = this.state.maxArmor;
   }

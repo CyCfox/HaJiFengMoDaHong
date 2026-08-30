@@ -58,7 +58,7 @@ export class UIApp {
       if (target.closest("button")) AudioManager.play("hover", 0.12);
     });
     store.subscribe(() => {
-      if (!this.affairs.root.classList.contains("hidden")) this.affairs.render();
+      if (!this.affairs.root.classList.contains("hidden") && !this.affairs.isSuppressingRender()) this.affairs.render();
     });
   }
 

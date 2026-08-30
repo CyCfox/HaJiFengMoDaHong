@@ -41,8 +41,8 @@ export function getWeaponStats(instance: WeaponInstance, buffs: BuffStack[] = []
   const config = getWeaponConfig(instance.kind);
   const dmgBonus = getBuffStack(buffs, "damage15");
   const rateBonus = getBuffStack(buffs, "fireRate8");
-  const extraPellets = getBuffStack(buffs, "pellet1");
-  const extraPierce = getBuffStack(buffs, "pierce1");
+  const extraPellets = instance.kind === "f12" ? getBuffStack(buffs, "pellet1") : 0;
+  const extraPierce = instance.kind === "awm" ? getBuffStack(buffs, "pierce1") : 0;
   return {
     range: config.baseRange * (1 + 0.05 * (instance.levels.range - 1)),
     fireRate: config.baseFireRate * (1 + 0.05 * (instance.levels.fireRate - 1) + 0.08 * rateBonus),
@@ -79,7 +79,7 @@ export function getBuffStack(buffs: BuffStack[], id: BuffId): number {
 
 export function getBuffBonus(buffs: BuffStack[]): {
   hp: number; armor: number; armorRegenPercent: number; speedMultiplier: number; backpack: number; load: number; damageMultiplier: number; fireRateBonus: number;
-  pickupMagnet: boolean; extraPellets: number; extraPierce: number; containerExtra: number; redChance: number; lifesteal: number; stunChance: number; burnStacks: number; freezeStacks: number;
+  extraPellets: number; extraPierce: number; containerExtra: number; redChance: number; lifesteal: number; stunChance: number; burnStacks: number; freezeStacks: number;
 } {
   return {
     hp: 50 * getBuffStack(buffs, "hp20"),
@@ -90,7 +90,6 @@ export function getBuffBonus(buffs: BuffStack[]): {
     load: 6 * getBuffStack(buffs, "load6"),
     damageMultiplier: 1 + 0.15 * getBuffStack(buffs, "damage15"),
     fireRateBonus: 0.08 * getBuffStack(buffs, "fireRate8"),
-    pickupMagnet: getBuffStack(buffs, "magnet") > 0,
     extraPellets: getBuffStack(buffs, "pellet1"),
     extraPierce: getBuffStack(buffs, "pierce1"),
     containerExtra: getBuffStack(buffs, "containerExtra"),

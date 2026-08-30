@@ -316,7 +316,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.projectiles.length + count > MAX_PLAYER_PROJECTILES) return;
     const angle = mount.aimAngle;
     const spread = count > 1 ? 0.14 / Math.max(1, count - 1) : 0;
-    const speeds: Record<string, number> = { g18: 700, uzi: 800, akm: 900, awm: 1200 };
+    const speeds: Record<string, number> = { g18: 700, uzi: 800, f12: 640, akm: 900, awm: 1200 };
     for (let i = 0; i < count; i++) {
       const a = angle + (i - (count - 1) / 2) * spread;
       const texture = `bullet_${mount.configKey}`;
@@ -327,11 +327,11 @@ export class BattleScene extends Phaser.Scene {
         isPlayer: true,
         kind: mount.configKey,
         ownerWeaponId: mount.weapon.id,
-        scale: mount.configKey === "awm" ? 1.2 : 1,
+        scale: mount.configKey === "awm" ? 1.2 : mount.configKey === "f12" ? 1.1 : 1,
       });
       this.projectiles.push(projectile);
     }
-    AudioManager.play(`shoot_${mount.configKey as "g18" | "uzi" | "akm" | "awm"}`, 0.55);
+    AudioManager.play(`shoot_${mount.configKey as "g18" | "uzi" | "f12" | "akm" | "awm"}`, 0.55);
     const flash = this.add.circle(mount.x, mount.y, 4, 0xfff2a8, 0.9).setDepth(28);
     this.tweens.add({ targets: flash, alpha: 0, scale: 2.2, duration: 90, onComplete: () => flash.destroy() });
     mount.resetCooldown();
@@ -730,9 +730,8 @@ export class BattleScene extends Phaser.Scene {
       loot.updateLoot(delta, time);
       if (!loot.canPickup(time)) continue;
       const distance = Phaser.Math.Distance.Between(loot.x, loot.y, this.player.x, this.player.y);
-      const magnetRange = bonus.pickupMagnet ? 150 : state.pickupRadius;
-      if (distance < magnetRange && distance > 4) {
-        const speed = bonus.pickupMagnet ? 260 : 120;
+      if (distance < state.pickupRadius && distance > 4) {
+        const speed = 120;
         loot.x += ((this.player.x - loot.x) / distance) * speed * (delta / 1000);
         loot.y += ((this.player.y - loot.y) / distance) * speed * (delta / 1000);
       }

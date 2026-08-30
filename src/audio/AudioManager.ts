@@ -1,5 +1,5 @@
 type SoundName =
-  | "click" | "hover" | "start" | "shoot_g18" | "shoot_uzi" | "shoot_akm" | "shoot_awm"
+  | "click" | "hover" | "start" | "shoot_g18" | "shoot_uzi" | "shoot_f12" | "shoot_akm" | "shoot_awm"
   | "hit" | "enemy_hit" | "kill" | "hurt" | "explosion" | "pickup" | "drop"
   | "container_open" | "coin" | "equip" | "unequip" | "upgrade" | "sell" | "transfer"
   | "draw" | "buff_select" | "submit" | "extract" | "boss" | "gameover" | "level_clear" | "denied";
@@ -74,6 +74,7 @@ class AudioManagerImpl {
       case "start": tone(260, "sawtooth", 520, 0.4); noise(0.25, 900); break;
       case "shoot_g18": tone(760, "square", 180, 0.07); noise(0.06, 2600); break;
       case "shoot_uzi": tone(980, "square", 300, 0.045); noise(0.04, 3200); break;
+      case "shoot_f12": tone(300, "square", 90, 0.15); noise(0.16, 1300); break;
       case "shoot_akm": tone(520, "sawtooth", 120, 0.10); noise(0.09, 1800); break;
       case "shoot_awm": tone(180, "sawtooth", 35, 0.22); noise(0.20, 900); break;
       case "hit": noise(0.06, 2600); tone(1200, "sine", 500, 0.05); break;
@@ -102,7 +103,7 @@ class AudioManagerImpl {
   }
 
   private durations: Partial<Record<SoundName, number>> = {
-    shoot_g18: 0.07, shoot_uzi: 0.05, shoot_akm: 0.10, shoot_awm: 0.22,
+    shoot_g18: 0.07, shoot_uzi: 0.05, shoot_f12: 0.18, shoot_akm: 0.10, shoot_awm: 0.22,
     explosion: 0.45, gameover: 1.0, boss: 0.8, extract: 0.9, draw: 0.5,
   };
 }

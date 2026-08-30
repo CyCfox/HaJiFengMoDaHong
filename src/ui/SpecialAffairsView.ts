@@ -15,6 +15,9 @@ export class SpecialAffairsView {
   private pendingDraw: BuffId[] = [];
   private selectedDraw: BuffId | null = null;
   private selectedUids = new Set<string>();
+  private suppressRender = false;
+  private tradeBuyScroll: HTMLElement | null = null;
+  private tradeOwnedScroll: HTMLElement | null = null;
 
   constructor(private onStartNextLevel: () => void, private onBackToMenu: () => void) {
     this.root = el("div", "affairs-screen hidden");
@@ -202,14 +205,45 @@ export class SpecialAffairsView {
   }
   private renderTrade(): void {
     const state = store.getState();
-    this.content.innerHTML = "";
-    this.content.appendChild(el("h2", "panel-heading", "交易行"));
-    this.content.appendChild(this.renderWalletBar(true));
-    const layout = el("div", "trade-layout");
+    let layout = this.content.querySelector<HTMLElement>(".trade-layout");
+    if (!layout) {
+      this.content.innerHTML = "";
+      this.content.appendChild(el("h2", "panel-heading", "交易行"));
+      this.content.appendChild(this.renderWalletBar(true));
+      layout = el("div", "trade-layout");
+      this.content.appendChild(layout);
+    } else {
+      const oldWallet = this.content.querySelector<HTMLElement>(".affairs-wallet-bar");
+      const newWallet = this.renderWalletBar(true);
+      if (oldWallet) oldWallet.replaceWith(newWallet);
+    }
 
-    const buyColumn = el("div", "trade-column buy-column");
-    buyColumn.appendChild(el("h3", "section-title", "购买枪械"));
-    const buyScroll = el("div", "trade-scroll");
+    let buyColumn = layout.querySelector<HTMLElement>(".buy-column");
+    if (!buyColumn) {
+      buyColumn = el("div", "trade-column buy-column");
+      buyColumn.appendChild(el("h3", "section-title", "购买枪械"));
+      const buyScroll = el("div", "trade-scroll");
+      buyColumn.appendChild(buyScroll);
+      layout.appendChild(buyColumn);
+    }
+    let ownedColumn = layout.querySelector<HTMLElement>(".owned-column");
+    if (!ownedColumn) {
+      ownedColumn = el("div", "trade-column owned-column");
+      ownedColumn.appendChild(el("h3", "section-title", "已购买枪械"));
+      const ownedScroll = el("div", "owned-list owned-scroll");
+      ownedColumn.appendChild(ownedScroll);
+      layout.appendChild(ownedColumn);
+    }
+
+    const buyScroll = buyColumn.querySelector<HTMLElement>(".trade-scroll")!;
+    const ownedScroll = ownedColumn.querySelector<HTMLElement>(".owned-scroll")!;
+    this.tradeBuyScroll = buyScroll;
+    this.tradeOwnedScroll = ownedScroll;
+    const buyScrollTop = buyScroll.scrollTop;
+    const ownedScrollTop = ownedScroll.scrollTop;
+    buyScroll.innerHTML = "";
+    ownedScroll.innerHTML = "";
+
     const buyGrid = el("div", "weapon-grid buy-grid");
     WEAPON_ORDER.forEach((kind) => {
       const config = WEAPONS[kind];
@@ -218,67 +252,173 @@ export class SpecialAffairsView {
       card.appendChild(el("div", "weapon-name", config.name));
       card.appendChild(el("div", "weapon-stats", `射程 ${config.baseRange} · 射速 ${config.baseFireRate} · 伤害 ${config.baseDamage} · 弹数 ${config.basePellets} · 重量 ${config.weight}`));
       const button = el("button", "secondary-button", `购买 ${fmtCoin(config.price)}`);
+      button.dataset.kind = kind;
       button.disabled = state.coins < config.price;
       button.addEventListener("click", () => {
-        if (store.buyWeapon(kind)) {
-          AudioManager.play("equip");
-          this.render();
-        } else {
-          AudioManager.play("denied");
-          toast(this.root, "哈哈币不足", "warning");
+        this.beginTradePatch();
+        try {
+          if (store.buyWeapon(kind)) {
+            AudioManager.play("equip");
+            const nextState = store.getState();
+            const weapon = nextState.ownedWeapons[nextState.ownedWeapons.length - 1]!;
+            this.patchTradeOwnedCard(weapon.id);
+            this.updateTradeWalletAndBuyButtons();
+          } else {
+            AudioManager.play("denied");
+            toast(this.root, "哈哈币不足", "warning");
+          }
+        } finally {
+          this.endTradePatch();
         }
       });
       card.appendChild(button);
       buyGrid.appendChild(card);
     });
     buyScroll.appendChild(buyGrid);
-    buyScroll.addEventListener("scroll", () => { this.content.dataset.tradeBuyScroll = String(buyScroll.scrollTop); });
-    buyColumn.appendChild(buyScroll);
 
-    const ownedColumn = el("div", "trade-column owned-column");
-    ownedColumn.appendChild(el("h3", "section-title", "已购买枪械"));
-    const ownedList = el("div", "owned-list owned-scroll");
-    if (!state.ownedWeapons.length) ownedList.appendChild(el("div", "empty-note", "尚未拥有枪械"));
+    if (!state.ownedWeapons.length) ownedScroll.appendChild(el("div", "empty-note", "尚未拥有枪械"));
     state.ownedWeapons.forEach((weapon) => {
-      ownedList.appendChild(this.weaponInstanceCard(weapon, state));
+      ownedScroll.appendChild(this.weaponInstanceCard(weapon, state));
     });
-    ownedList.addEventListener("scroll", () => { this.content.dataset.tradeOwnedScroll = String(ownedList.scrollTop); });
-    ownedColumn.appendChild(ownedList);
-
-    layout.append(buyColumn, ownedColumn);
-    this.content.appendChild(layout);
-    const savedBuy = Number(this.content.dataset.tradeBuyScroll ?? "0");
-    const savedOwned = Number(this.content.dataset.tradeOwnedScroll ?? "0");
-    window.setTimeout(() => {
-      buyScroll.scrollTop = savedBuy;
-      ownedList.scrollTop = savedOwned;
-    }, 50);
+    buyScroll.scrollTop = buyScrollTop;
+    ownedScroll.scrollTop = ownedScrollTop;
   }
-  private weaponInstanceCard(weapon: WeaponInstance, state: RunState): HTMLElement {
+  isSuppressingRender(): boolean {
+    return this.suppressRender;
+  }
+
+  private beginTradePatch(): void {
+    this.suppressRender = true;
+  }
+
+  private endTradePatch(): void {
+    this.suppressRender = false;
+  }
+
+  private updateTradeWalletAndBuyButtons(): void {
+    const state = store.getState();
+    const coin = this.content.querySelector<HTMLElement>(".wallet-coin b");
+    if (coin) coin.textContent = fmtCoin(state.coins);
+    const load = this.content.querySelector<HTMLElement>(".wallet-load b");
+    if (load) load.textContent = `${getEquippedWeight(state.ownedWeapons).toFixed(1)} / ${state.loadCapacity}`;
+    const used = getEquippedWeight(state.ownedWeapons);
+    const warning = this.content.querySelector<HTMLElement>(".affairs-warning");
+    if (used > state.loadCapacity) {
+      if (!warning) this.content.appendChild(el("div", "affairs-warning", "枪械总重量超过负重，无法继续装备，请先卸下部分武器"));
+    } else if (warning) {
+      warning.remove();
+    }
+    for (const button of this.content.querySelectorAll<HTMLButtonElement>(".buy-card button")) {
+      const kind = button.dataset.kind as WeaponKind | undefined;
+      if (kind) button.disabled = state.coins < WEAPONS[kind].price;
+    }
+  }
+
+  private patchTradeOwnedCard(weaponId: string): void {
+    const scrollTop = this.tradeOwnedScroll?.scrollTop ?? 0;
+    const state = store.getState();
+    const weapon = state.ownedWeapons.find((item) => item.id === weaponId);
+    const current = this.tradeOwnedScroll?.querySelector<HTMLElement>(`[data-weapon-id="${weaponId}"]`);
+    if (!weapon) {
+      current?.remove();
+      if (this.tradeOwnedScroll) this.tradeOwnedScroll.scrollTop = scrollTop;
+      return;
+    }
+    if (current) {
+      this.updateWeaponInstanceCard(current, weapon, state);
+    } else {
+      this.tradeOwnedScroll?.appendChild(this.weaponInstanceCard(weapon, state));
+    }
+    if (this.tradeOwnedScroll) this.tradeOwnedScroll.scrollTop = scrollTop;
+  }
+  private updateWeaponInstanceCard(card: HTMLElement, weapon: WeaponInstance, state: RunState): void {
     const config = getWeaponConfig(weapon.kind);
     const stats = store.weaponStats(weapon);
+    const name = card.querySelector<HTMLElement>(".instance-name");
+    if (name) name.textContent = config.name;
+    const serial = card.querySelector<HTMLElement>(".serial");
+    if (serial) serial.textContent = `#${weapon.serial}`;
+    const equippedTag = card.querySelector<HTMLElement>(".equipped-tag");
+    if (equippedTag) {
+      equippedTag.textContent = weapon.equipped ? "已装备" : "";
+      equippedTag.classList.toggle("hidden", !weapon.equipped);
+    }
+    const statsEl = card.querySelector<HTMLElement>(".weapon-stats");
+    if (statsEl) statsEl.textContent = `${stats.range.toFixed(0)} 射程 · ${stats.fireRate.toFixed(2)}/s · ${stats.damage.toFixed(0)} 伤害 · ${stats.pellets} 弹 · ${stats.pierce} 贯穿 · ${config.weight} 重`;
+    const equip = card.querySelector<HTMLButtonElement>(".equip-button");
+    if (equip) equip.textContent = weapon.equipped ? "卸下" : "装备";
+    const upgradeButtons = card.querySelectorAll<HTMLButtonElement>(".upgrade-button");
+    upgradeButtons.forEach((button, index) => {
+      const meta = WEAPON_UPGRADES[index];
+      if (!meta) return;
+      const key = meta.key as WeaponUpgradeKey;
+      const cost = store.upgradeCost(weapon, key);
+      const gain = key === "range"
+        ? `+${Math.round(config.baseRange * 0.05)}`
+        : key === "fireRate"
+          ? `+${(config.baseFireRate * 0.05).toFixed(2)}/秒`
+          : `+${Math.round(config.baseDamage * 0.10)}`;
+      const title = button.querySelector<HTMLElement>(".upgrade-line-title");
+      if (title) title.textContent = `${meta.label}LV${weapon.levels[key]}→LV${weapon.levels[key] + 1}`;
+      const gainEl = button.querySelector<HTMLElement>(".upgrade-line-gain");
+      if (gainEl) gainEl.textContent = `${meta.label}${gain}`;
+      const costEl = button.querySelector<HTMLElement>(".upgrade-line-cost");
+      if (costEl) costEl.textContent = `花费${fmtCoin(cost)}`;
+      button.disabled = state.coins < cost;
+    });
+  }
+  private weaponInstanceCard(weapon: WeaponInstance, state: RunState): HTMLElement {
     const card = el("div", "weapon-instance-card");
+    card.dataset.weaponId = weapon.id;
+    this.fillWeaponInstanceCard(card, weapon, state);
+    return card;
+  }
+
+  private fillWeaponInstanceCard(card: HTMLElement, weapon: WeaponInstance, state: RunState): void {
+    const config = getWeaponConfig(weapon.kind);
+    const stats = store.weaponStats(weapon);
+    card.replaceChildren();
     card.appendChild(imageEl(config.asset, "weapon-art small-art", config.name));
     const body = el("div", "weapon-instance-body");
-    body.innerHTML = `
-      <div class="instance-title">${config.name} <span class="serial">#${weapon.serial}</span> ${weapon.equipped ? '<span class="equipped-tag">已装备</span>' : ""}</div>
-      <div class="weapon-stats">${stats.range.toFixed(0)} 射程 · ${stats.fireRate.toFixed(2)}/s · ${stats.damage.toFixed(0)} 伤害 · ${stats.pellets} 弹 · ${stats.pierce} 贯穿 · ${config.weight} 重</div>
-    `;
+    const title = el("div", "instance-title");
+    title.append(
+      el("span", "instance-name", config.name),
+      el("span", "serial", `#${weapon.serial}`),
+      el("span", `equipped-tag${weapon.equipped ? "" : " hidden"}`, weapon.equipped ? "已装备" : ""),
+    );
+    body.appendChild(title);
+    body.appendChild(el("div", "weapon-stats", `${stats.range.toFixed(0)} 射程 · ${stats.fireRate.toFixed(2)}/s · ${stats.damage.toFixed(0)} 伤害 · ${stats.pellets} 弹 · ${stats.pierce} 贯穿 · ${config.weight} 重`));
     const actions = el("div", "weapon-actions");
     const equip = el("button", "equip-button", weapon.equipped ? "卸下" : "装备");
     equip.addEventListener("click", () => {
-      const ok = weapon.equipped ? store.unequipWeapon(weapon.id) : store.equipWeapon(weapon.id);
-      AudioManager.play(ok ? "equip" : "denied");
-      if (!ok && !weapon.equipped) toast(this.root, "装备后超出负重，无法携带", "warning");
-      if (!ok && weapon.equipped) toast(this.root, "必须至少保留一把已装备武器", "warning");
-      this.render();
+      this.beginTradePatch();
+      try {
+        const ok = weapon.equipped ? store.unequipWeapon(weapon.id) : store.equipWeapon(weapon.id);
+        AudioManager.play(ok ? "equip" : "denied");
+        if (!ok && !weapon.equipped) toast(this.root, "装备后超出负重，无法携带", "warning");
+        if (!ok && weapon.equipped) toast(this.root, "必须至少保留一把已装备武器", "warning");
+        if (ok) {
+          this.patchTradeOwnedCard(weapon.id);
+          this.updateTradeWalletAndBuyButtons();
+        }
+      } finally {
+        this.endTradePatch();
+      }
     });
     const sell = el("button", "small-button danger", `出售 ${fmtCoin(Math.floor(weapon.purchasePrice * 0.5))}`);
     sell.addEventListener("click", () => {
-      const ok = store.sellWeapon(weapon.id);
-      AudioManager.play(ok ? "sell" : "denied");
-      if (!ok) toast(this.root, "必须至少保留一把已装备武器", "warning");
-      this.render();
+      this.beginTradePatch();
+      try {
+        const ok = store.sellWeapon(weapon.id);
+        AudioManager.play(ok ? "sell" : "denied");
+        if (!ok) toast(this.root, "必须至少保留一把已装备武器", "warning");
+        if (ok) {
+          this.patchTradeOwnedCard(weapon.id);
+          this.updateTradeWalletAndBuyButtons();
+        }
+      } finally {
+        this.endTradePatch();
+      }
     });
     actions.append(equip, sell);
     body.appendChild(actions);
@@ -300,17 +440,23 @@ export class SpecialAffairsView {
       `;
       button.disabled = state.coins < cost;
       button.addEventListener("click", () => {
-        const ok = store.upgradeWeapon(weapon.id, key);
-        AudioManager.play(ok ? "upgrade" : "denied");
-        if (!ok) toast(this.root, "哈哈币不足", "warning");
-        this.render();
+        this.beginTradePatch();
+        try {
+          const ok = store.upgradeWeapon(weapon.id, key);
+          AudioManager.play(ok ? "upgrade" : "denied");
+          if (!ok) toast(this.root, "哈哈币不足", "warning");
+          if (ok) {
+            this.patchTradeOwnedCard(weapon.id);
+            this.updateTradeWalletAndBuyButtons();
+          }
+        } finally {
+          this.endTradePatch();
+        }
       });
       upgrades.appendChild(button);
     });
     card.appendChild(upgrades);
-    return card;
   }
-
   private renderBird(): void {
     const state = store.getState();
     const cost = getDrawCost(state.drawCountThisAffairs);

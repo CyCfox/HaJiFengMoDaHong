@@ -144,7 +144,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setDepth(config.isBoss ? 30 : 15);
-    const targetWidth = config.isBoss ? 64 : config.kind === "flamer" ? 52 : config.kind === "shield" ? 46 : config.kind === "rocket" ? 58 : config.kind === "gunner" ? 50 : 34;
+    const targetWidth = config.isBoss ? 64 : config.kind === "flamer" ? 52 : config.kind === "shield" ? 46 : config.kind === "rocket" ? 58 : config.kind === "gunner" ? 58 : 34;
     const ratio = this.height / this.width;
     this.setDisplaySize(targetWidth, targetWidth * ratio);
     this.setOrigin(0.5, 0.82);
@@ -252,7 +252,7 @@ export class WeaponMount extends Phaser.GameObjects.Container {
     const config = getWeaponConfig(weapon.kind);
     this.image = scene.add.image(0, 0, `crop_weapon_${config.kind}`);
     const weaponRatio = this.image.height / this.image.width;
-    const weaponWidths: Record<WeaponKind, number> = { g18: 54, uzi: 70, akm: 82, awm: 96 };
+    const weaponWidths: Record<WeaponKind, number> = { g18: 54, uzi: 70, f12: 96, akm: 82, awm: 96 };
     this.image.setDisplaySize(weaponWidths[weapon.kind], weaponWidths[weapon.kind] * weaponRatio);
     this.image.setOrigin(0.25, 0.5);
     this.add(this.image);

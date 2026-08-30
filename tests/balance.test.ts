@@ -45,14 +45,23 @@ describe("weapon calculations and store behavior", () => {
     expect(store.getCollectionLevel("gold_bar")).toBe(3);
   });
 
-  it("removes direct pellet upgrades and keeps them only as buffs", () => {
+  it("removes direct pellet upgrades and keeps they only as shotgun/awm buffs", () => {
     expect(WEAPON_UPGRADES.map((item) => item.key)).toEqual(["range", "fireRate", "damage"]);
     const instance = createWeaponInstance("g18", 1);
     instance.levels.pellets = 9;
     expect(getWeaponStats(instance).pellets).toBe(1);
+    const shotgun = createWeaponInstance("f12", 1);
+    const awm = createWeaponInstance("awm", 1);
+    expect(WEAPONS.f12.baseRange).toBe(320);
+    expect(getWeaponStats(shotgun).pellets).toBe(3);
+    expect(getWeaponStats(awm).pierce).toBe(2);
     store.resetRun();
     store.applyBuff("pellet1");
-    expect(store.weaponStats(instance).pellets).toBe(2);
+    store.applyBuff("pierce1");
+    expect(store.weaponStats(instance).pellets).toBe(1);
+    expect(store.weaponStats(shotgun).pellets).toBe(4);
+    expect(store.weaponStats(awm).pierce).toBe(3);
+    expect(store.weaponStats(instance).pierce).toBe(0);
   });
 
   it("keeps requested prices and sale price", () => {
@@ -118,13 +127,6 @@ describe("drawing and buffs", () => {
     expect(second).toContain("hp20");
   });
 
-  it("excludes unique magnet after it is owned", () => {
-    const owned = [{ id: "magnet" as const, stacks: 1 }];
-    for (let i = 0; i < 20; i++) {
-      const sample = sampleBuffCards(owned, () => Math.random());
-      expect(sample).not.toContain("magnet");
-    }
-  });
 
   it("draw cost doubles and resets per new special-affairs session", () => {
     expect(getDrawCost(0)).toBe(50000);
@@ -146,12 +148,14 @@ describe("drawing and buffs", () => {
     expect(bonus.redChance).toBe(1);
   });
 
-  it("has exactly the 18 specified buffs and 15 collections", () => {
-    expect(BUFFS).toHaveLength(18);
+  it("has exactly the 17 specified buffs and 15 collections", () => {
+    expect(BUFFS).toHaveLength(17);
     expect(BUFFS.find((b) => b.id === "load6")?.description).toBe("负重 +6");
     expect(BUFFS.find((b) => b.id === "armorRegen")?.description).toBe("2秒未受伤后，每秒恢复最大护甲5%");
+    expect(BUFFS.find((b) => b.id === "pellet1")?.description).toBe("所有霰弹枪弹数 +1");
+    expect(BUFFS.find((b) => b.id === "pierce1")?.description).toBe("所有狙击枪子弹贯穿 +1");
     expect(COLLECTIONS).toHaveLength(15);
-    expect(WEAPON_ORDER).toHaveLength(4);
+    expect(WEAPON_ORDER).toHaveLength(5);
   });
 
   it("matches current enemy skill tuning", () => {

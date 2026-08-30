@@ -1,5 +1,5 @@
 export type Rarity = "blue" | "purple" | "gold" | "red";
-export type WeaponKind = "g18" | "uzi" | "akm" | "awm";
+export type WeaponKind = "g18" | "uzi" | "f12" | "akm" | "awm";
 export type WeaponUpgradeKey = "range" | "fireRate" | "damage" | "pellets";
 export type EnemyKind = "soldier" | "shield" | "rocket" | "gunner" | "flamer" | "boss";
 export type ContainerKind = "small" | "large";
@@ -56,7 +56,7 @@ export interface ContainerConfig {
 
 export type BuffId =
   | "hp20" | "armor25" | "speed10" | "bag10" | "bag5" | "load6" | "armorRegen" | "damage15" | "fireRate8"
-  | "magnet" | "pellet1" | "pierce1" | "containerExtra" | "redChance"
+  | "pellet1" | "pierce1" | "containerExtra" | "redChance"
   | "burn" | "freeze" | "lifesteal2" | "stun";
 
 export interface BuffConfig {
