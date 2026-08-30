@@ -297,7 +297,7 @@ export class WeaponMount extends Phaser.GameObjects.Container {
   }
 }
 
-export class Projectile extends Phaser.GameObjects.Image {
+export class Projectile extends Phaser.GameObjects.Sprite {
   readonly dir: Phaser.Math.Vector2;
   readonly speed: number;
   readonly damage: number;
@@ -311,7 +311,7 @@ export class Projectile extends Phaser.GameObjects.Image {
   readonly facesLeft: boolean;
   hitEnemies = new Set<string>();
 
-  constructor(scene: Phaser.Scene, x: number, y: number, angle: number, texture: string, options: { speed: number; damage: number; pierce: number; isPlayer: boolean; kind: string; ownerWeaponId?: string; scale?: number; maxDistance?: number; facesLeft?: boolean; displayWidth?: number }) {
+  constructor(scene: Phaser.Scene, x: number, y: number, angle: number, texture: string, options: { speed: number; damage: number; pierce: number; isPlayer: boolean; kind: string; ownerWeaponId?: string; scale?: number; maxDistance?: number; facesLeft?: boolean; displayWidth?: number; animationKey?: string }) {
     super(scene, x, y, texture);
     this.startX = x;
     this.startY = y;
@@ -336,6 +336,7 @@ export class Projectile extends Phaser.GameObjects.Image {
     } else if (options.scale) {
       this.setScale(options.scale);
     }
+    if (options.animationKey) this.play(options.animationKey, true);
   }
 
   update(): void {

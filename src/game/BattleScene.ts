@@ -363,11 +363,12 @@ export class BattleScene extends Phaser.Scene {
     } else if (config.kind === "boss") {
       if (Math.random() < 0.5) {
         for (let i = -2; i <= 2; i++) {
-          this.spawnEnemyProjectile(enemy, angle + i * 0.18, "crop_fire_1", 300, 0, 0, {
+          this.spawnEnemyProjectile(enemy, angle + i * 0.18, "crop_arrow_1", 300, 0, 0, {
             kind: "flame_arrow",
             maxDistance: event.distance,
             facesLeft: true,
-            displayWidth: 72,
+            displayWidth: 110,
+            animationKey: "firearrow_anim",
           });
         }
       } else {
@@ -385,7 +386,7 @@ export class BattleScene extends Phaser.Scene {
     speed: number,
     damage: number,
     pierce: number,
-    extra: { kind?: string; maxDistance?: number; facesLeft?: boolean; displayWidth?: number; scale?: number } = {},
+    extra: { kind?: string; maxDistance?: number; facesLeft?: boolean; displayWidth?: number; scale?: number; animationKey?: string } = {},
   ): void {
     const projectile = new Projectile(this, enemy.x + Math.cos(angle) * 24, enemy.y + Math.sin(angle) * 24, angle, texture, {
       speed,
@@ -397,9 +398,10 @@ export class BattleScene extends Phaser.Scene {
       maxDistance: extra.maxDistance,
       facesLeft: extra.facesLeft,
       displayWidth: extra.displayWidth,
+      animationKey: extra.animationKey,
     });
     this.projectiles.push(projectile);
-    if (texture === "military_shell" || texture === "crop_fire_1" || texture === "rocket") AudioManager.play("shoot_akm", 0.18);
+    if (texture === "military_shell" || texture === "crop_fire_1" || texture === "crop_arrow_1" || texture === "rocket") AudioManager.play("shoot_akm", 0.18);
   }
   private updateFlamers(delta: number): void {
     const seconds = delta / 1000;

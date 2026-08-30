@@ -35,6 +35,9 @@ export class BootScene extends Phaser.Scene {
     for (let i = 1; i <= 8; i++) {
       this.load.image(`burn_${i}`, projectAsset(`assets/effects/burn/frames/燃烧特效_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
     }
+    for (let i = 1; i <= 9; i++) {
+      this.load.image(`arrow_${i}`, projectAsset(`assets/effects/firearrow/frames/火箭_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
+    }
   }
 
   create(): void {
@@ -58,6 +61,9 @@ export class BootScene extends Phaser.Scene {
     const burnBounds = Array.from({ length: 8 }, (_, i) => sourceBounds(this, `burn_${i + 1}`));
     const burnUnion = unionBounds(burnBounds);
     for (let i = 1; i <= 8; i++) createCroppedTexture(this, `burn_${i}`, `crop_burn_${i}`, burnUnion);
+    const arrowBounds = Array.from({ length: 9 }, (_, i) => sourceBounds(this, `arrow_${i + 1}`));
+    const arrowUnion = unionBounds(arrowBounds);
+    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `arrow_${i}`, `crop_arrow_${i}`, arrowUnion);
     this.createBulletTextures();
     this.createEffectAnimations();
     GameBus.emit("boot:ready", undefined);
@@ -85,6 +91,14 @@ export class BootScene extends Phaser.Scene {
         key: "burn_anim",
         frames: Array.from({ length: 8 }, (_, i) => ({ key: `crop_burn_${i + 1}` })),
         frameRate: 12,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists("firearrow_anim")) {
+      this.anims.create({
+        key: "firearrow_anim",
+        frames: Array.from({ length: 9 }, (_, i) => ({ key: `crop_arrow_${i + 1}` })),
+        frameRate: 14,
         repeat: -1,
       });
     }
