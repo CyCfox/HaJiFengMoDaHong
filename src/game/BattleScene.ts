@@ -331,7 +331,7 @@ export class BattleScene extends Phaser.Scene {
       });
       this.projectiles.push(projectile);
     }
-    AudioManager.play(`shoot_${mount.configKey as "g18" | "uzi" | "f12" | "akm" | "awm"}`, 0.55);
+    AudioManager.play("player_shot", 0.55);
     const flash = this.add.circle(mount.x, mount.y, 4, 0xfff2a8, 0.9).setDepth(28);
     this.tweens.add({ targets: flash, alpha: 0, scale: 2.2, duration: 90, onComplete: () => flash.destroy() });
     mount.resetCooldown();
@@ -367,7 +367,7 @@ export class BattleScene extends Phaser.Scene {
             kind: "flame_arrow",
             maxDistance: event.distance,
             facesLeft: true,
-            displayWidth: 110,
+            displayWidth: 88,
             animationKey: "firearrow_anim",
           });
         }

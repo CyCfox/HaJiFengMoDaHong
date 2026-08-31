@@ -1,5 +1,7 @@
+import { projectAsset } from "../core/assets";
+
 type SoundName =
-  | "click" | "hover" | "start" | "shoot_g18" | "shoot_uzi" | "shoot_f12" | "shoot_akm" | "shoot_awm"
+  | "click" | "hover" | "start" | "player_shot" | "shoot_g18" | "shoot_uzi" | "shoot_f12" | "shoot_akm" | "shoot_awm"
   | "hit" | "enemy_hit" | "kill" | "hurt" | "explosion" | "pickup" | "drop"
   | "container_open" | "coin" | "equip" | "unequip" | "upgrade" | "sell" | "transfer"
   | "draw" | "buff_select" | "submit" | "extract" | "boss" | "gameover" | "level_clear" | "denied";
@@ -9,6 +11,8 @@ class AudioManagerImpl {
   private master: GainNode | null = null;
   private sfx: GainNode | null = null;
   private enabled = true;
+  private masterVolume = 0.7;
+  private shotAudio: HTMLAudioElement | null = null;
 
   init(): void {
     if (this.context) {
@@ -17,6 +21,10 @@ class AudioManagerImpl {
     }
     const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.context = new Ctor();
+    if (!this.shotAudio) {
+      this.shotAudio = new Audio(projectAsset("assets/audio/开枪.mp3"));
+      this.shotAudio.preload = "auto";
+    }
     this.master = this.context.createGain();
     this.master.gain.value = 0.7;
     this.master.connect(this.context.destination);
@@ -26,7 +34,8 @@ class AudioManagerImpl {
   }
 
   setVolume(volume: number): void {
-    if (this.master) this.master.gain.value = Math.max(0, Math.min(1, volume));
+    this.masterVolume = Math.max(0, Math.min(1, volume));
+    if (this.master) this.master.gain.value = this.masterVolume;
   }
 
   setEnabled(enabled: boolean): void {
@@ -34,7 +43,14 @@ class AudioManagerImpl {
   }
 
   play(name: SoundName, volume = 0.7): void {
-    if (!this.enabled || !this.context || !this.sfx) return;
+    if (!this.enabled) return;
+    if (name === "player_shot") {
+      const audio = (this.shotAudio?.cloneNode(true) as HTMLAudioElement | null) ?? new Audio(projectAsset("assets/audio/开枪.mp3"));
+      audio.volume = Math.max(0, Math.min(1, volume * this.masterVolume));
+      void audio.play().catch(() => {});
+      return;
+    }
+    if (!this.context || !this.sfx) return;
     const ctx = this.context;
     const now = ctx.currentTime;
     const gain = ctx.createGain();
