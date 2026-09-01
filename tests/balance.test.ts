@@ -174,4 +174,31 @@ describe("drawing and buffs", () => {
       COLLECTIONS.map(({ id, rarity, price }) => ({ id, rarity, price })),
     );
   });
+
+  it("adds the 15 requested new red collections with specified slots", () => {
+    const requested = new Map([
+      ["laptop", 6],
+      ["portable_military_radar", 9],
+      ["portable_life_support", 4],
+      ["ifv_model", 6],
+      ["crocodile_head", 4],
+      ["flight_recorder", 6],
+      ["resuscitator", 9],
+      ["fossil", 2],
+      ["classified_server", 9],
+      ["mandel_computing_unit", 9],
+      ["fine_porcelain", 8],
+      ["heaven_and_earth", 4],
+      ["micro_nuclear_reactor", 9],
+      ["armored_vehicle_battery", 6],
+      ["zongheng", 9],
+    ]);
+    const subset = COLLECTIONS.filter((item) => requested.has(item.id));
+    expect(subset).toHaveLength(15);
+    for (const item of subset) {
+      expect(item.rarity).toBe("red");
+      expect(item.slots).toBe(requested.get(item.id));
+    }
+  });
+
 });
