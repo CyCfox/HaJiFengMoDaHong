@@ -148,13 +148,13 @@ describe("drawing and buffs", () => {
     expect(bonus.redChance).toBe(1);
   });
 
-  it("has exactly the 17 specified buffs and 15 collections", () => {
+  it("has exactly the 17 specified buffs and 30 collections", () => {
     expect(BUFFS).toHaveLength(17);
     expect(BUFFS.find((b) => b.id === "load6")?.description).toBe("负重 +6");
     expect(BUFFS.find((b) => b.id === "armorRegen")?.description).toBe("2秒未受伤后，每秒恢复最大护甲5%");
     expect(BUFFS.find((b) => b.id === "pellet1")?.description).toBe("所有霰弹枪弹数 +1");
     expect(BUFFS.find((b) => b.id === "pierce1")?.description).toBe("所有狙击枪子弹贯穿 +1");
-    expect(COLLECTIONS).toHaveLength(15);
+    expect(COLLECTIONS).toHaveLength(30);
     expect(WEAPON_ORDER).toHaveLength(5);
   });
 

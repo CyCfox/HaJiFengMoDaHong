@@ -41,29 +41,33 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    const textureQualityScale = Math.max(3, Math.ceil((window.devicePixelRatio || 1) * 2));
     const frameBounds = Array.from({ length: PLAYER_FRAME_COUNT }, (_, index) => sourceBounds(this, `player_${index + 1}`));
     const playerUnion = unionBounds(frameBounds);
+    const enemyWidths: Record<string, number> = { soldier: 34, shield: 46, rocket: 58, gunner: 58, flamer: 52, boss: 64 };
+    const weaponWidths: Record<string, number> = { g18: 54, uzi: 70, f12: 96, akm: 82, awm: 96 };
+    const collectionWidths: Record<string, number> = { maiden_pendant: 30 };
     for (let i = 1; i <= PLAYER_FRAME_COUNT; i++) {
-      createCroppedTexture(this, `player_${i}`, `crop_player_${i}`, playerUnion);
+      createCroppedTexture(this, `player_${i}`, `crop_player_${i}`, playerUnion, Math.round(64 * textureQualityScale));
     }
-    for (const key of Object.keys(ENEMIES)) createCroppedTexture(this, `enemy_${key}`, `crop_enemy_${key}`);
-    for (const key of Object.keys(WEAPONS)) createCroppedTexture(this, `weapon_${key}`, `crop_weapon_${key}`);
-    for (const collection of COLLECTIONS) createCroppedTexture(this, `collection_${collection.id}`, `crop_collection_${collection.id}`);
-    createCroppedTexture(this, "container_small", "crop_container_small");
-    createCroppedTexture(this, "container_large", "crop_container_large");
-    createCroppedTexture(this, "military_shell", "crop_military_shell");
+    for (const key of Object.keys(ENEMIES)) createCroppedTexture(this, `enemy_${key}`, `crop_enemy_${key}`, undefined, Math.round((enemyWidths[key] ?? 34) * textureQualityScale));
+    for (const key of Object.keys(WEAPONS)) createCroppedTexture(this, `weapon_${key}`, `crop_weapon_${key}`, undefined, Math.round((weaponWidths[key] ?? 54) * textureQualityScale));
+    for (const collection of COLLECTIONS) createCroppedTexture(this, `collection_${collection.id}`, `crop_collection_${collection.id}`, undefined, Math.round((collectionWidths[collection.id] ?? 38) * textureQualityScale));
+    createCroppedTexture(this, "container_small", "crop_container_small", undefined, Math.round(44 * textureQualityScale));
+    createCroppedTexture(this, "container_large", "crop_container_large", undefined, Math.round(50 * textureQualityScale));
+    createCroppedTexture(this, "military_shell", "crop_military_shell", undefined, Math.round(52 * textureQualityScale));
     const boomBounds = Array.from({ length: 9 }, (_, i) => sourceBounds(this, `boom_${i + 1}`));
     const boomUnion = unionBounds(boomBounds);
-    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `boom_${i}`, `crop_boom_${i}`, boomUnion);
+    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `boom_${i}`, `crop_boom_${i}`, boomUnion, Math.round(140 * textureQualityScale));
     const fireBounds = Array.from({ length: 11 }, (_, i) => sourceBounds(this, `fire_${i + 1}`));
     const fireUnion = unionBounds(fireBounds);
-    for (let i = 1; i <= 11; i++) createCroppedTexture(this, `fire_${i}`, `crop_fire_${i}`, fireUnion);
+    for (let i = 1; i <= 11; i++) createCroppedTexture(this, `fire_${i}`, `crop_fire_${i}`, fireUnion, Math.round(250 * textureQualityScale));
     const burnBounds = Array.from({ length: 8 }, (_, i) => sourceBounds(this, `burn_${i + 1}`));
     const burnUnion = unionBounds(burnBounds);
-    for (let i = 1; i <= 8; i++) createCroppedTexture(this, `burn_${i}`, `crop_burn_${i}`, burnUnion);
+    for (let i = 1; i <= 8; i++) createCroppedTexture(this, `burn_${i}`, `crop_burn_${i}`, burnUnion, Math.round(180 * textureQualityScale));
     const arrowBounds = Array.from({ length: 9 }, (_, i) => sourceBounds(this, `arrow_${i + 1}`));
     const arrowUnion = unionBounds(arrowBounds);
-    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `arrow_${i}`, `crop_arrow_${i}`, arrowUnion);
+    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `arrow_${i}`, `crop_arrow_${i}`, arrowUnion, Math.round(88 * textureQualityScale));
     this.createBulletTextures();
     this.createEffectAnimations();
     GameBus.emit("boot:ready", undefined);

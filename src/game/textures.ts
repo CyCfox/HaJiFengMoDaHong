@@ -31,15 +31,22 @@ export function createCroppedTexture(
   originalKey: string,
   targetKey: string,
   fixedBounds?: { x: number; y: number; width: number; height: number },
+  targetWidth?: number,
 ): void {
   const texture = scene.textures.get(originalKey);
   const image = texture.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
   const bounds = fixedBounds ?? alphaBounds(image);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, bounds.width);
-  canvas.height = Math.max(1, bounds.height);
+  const outputWidth = targetWidth ? Math.max(1, Math.round(targetWidth)) : bounds.width;
+  const outputHeight = targetWidth
+    ? Math.max(1, Math.round(bounds.height * outputWidth / bounds.width))
+    : bounds.height;
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
   const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, bounds.width, bounds.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, outputWidth, outputHeight);
   if (scene.textures.exists(targetKey)) scene.textures.remove(targetKey);
   scene.textures.addCanvas(targetKey, canvas);
 }

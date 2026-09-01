@@ -143,7 +143,9 @@ export function rollCollection(seed: number, source: "enemy" | "small" | "large"
   };
   const rarity = pickRarity(seed, weights);
   if (rarity !== "red") {
-    return COLLECTIONS.find((c) => c.rarity === rarity)!;
+    const candidates = COLLECTIONS.filter((c) => c.rarity === rarity);
+    const pick = Math.floor(((seed * 7919) % 1 || 0.5) * candidates.length);
+    return candidates[Math.min(candidates.length - 1, pick)]!;
   }
   return pickRedCollection(seed * 7919 % 1 || 0.5, source === "enemy" ? undefined : CONTAINERS[source]);
 }
