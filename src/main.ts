@@ -47,6 +47,9 @@ const game = new Phaser.Game({
     width: window.innerWidth,
     height: window.innerHeight,
   },
+  render: {
+    mipmapFilter: "LINEAR_MIPMAP_LINEAR",
+  },
   physics: {
     default: "arcade",
     arcade: { gravity: { x: 0, y: 0 }, debug: false },

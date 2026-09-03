@@ -1,12 +1,13 @@
-import { BUFFS, COLLECTIONS, WEAPONS, WEAPON_ORDER, WEAPON_UPGRADES } from "../../shared/balance";
+import { AGENTS, BUFFS, COLLECTIONS, WEAPONS, WEAPON_ORDER, WEAPON_UPGRADES } from "../../shared/balance";
 import { getDrawCost, getEquippedWeight, getUpgradeCost, getWeaponConfig, getWeaponStats, sampleBuffCards } from "../../shared/calculations";
-import type { BuffId, RunState, WeaponInstance, WeaponKind, WeaponUpgradeKey } from "../../shared/types";
+import type { AgentConfig, BuffId, RunState, WeaponInstance, WeaponKind, WeaponUpgradeKey } from "../../shared/types";
 import { store } from "../core/RunStore";
 import { SaveGateway } from "../core/SaveGateway";
 import { AudioManager } from "../audio/AudioManager";
+import { projectAsset } from "../core/assets";
 import { el, fmtCoin, imageEl, rarityClass, toast } from "./helpers";
 
-type AffairsPanel = "start" | "warehouse" | "trade" | "bird" | "collection";
+type AffairsPanel = "start" | "warehouse" | "trade" | "bird" | "collection" | "agents";
 
 export class SpecialAffairsView {
   readonly root: HTMLElement;
@@ -18,6 +19,9 @@ export class SpecialAffairsView {
   private suppressRender = false;
   private tradeBuyScroll: HTMLElement | null = null;
   private tradeOwnedScroll: HTMLElement | null = null;
+  private selectedAgentId = AGENTS[0]?.id ?? "weilong";
+  private agentAnimTimer: number | null = null;
+  private agentAnimIndex = 0;
 
   constructor(private onStartNextLevel: () => void, private onBackToMenu: () => void) {
     this.root = el("div", "affairs-screen hidden");
@@ -29,6 +33,7 @@ export class SpecialAffairsView {
           <button data-panel="warehouse">仓库</button>
           <button data-panel="trade">交易行</button>
           <button data-panel="bird">幸运鸟窝</button>
+          <button data-panel="agents">干员</button>
           <button data-panel="collection">收藏室</button>
         </nav>
         <button class="ghost-button menu-back">返回主菜单</button>
@@ -43,6 +48,7 @@ export class SpecialAffairsView {
         this.pendingDraw = [];
         this.selectedDraw = null;
         this.selectedUids.clear();
+        this.stopAgentAnimation();
         this.render();
       });
     });
@@ -58,6 +64,7 @@ export class SpecialAffairsView {
   }
 
   hide(): void {
+    this.stopAgentAnimation();
     this.root.classList.add("hidden");
   }
 
@@ -67,7 +74,168 @@ export class SpecialAffairsView {
     else if (this.active === "warehouse") this.renderWarehouse();
     else if (this.active === "trade") this.renderTrade();
     else if (this.active === "bird") this.renderBird();
+    else if (this.active === "agents") this.renderAgents();
     else this.renderCollection();
+  }
+
+  private renderAgents(): void {
+    this.stopAgentAnimation();
+    const state = store.getState();
+    const agent = AGENTS.find((item) => item.id === this.selectedAgentId) ?? AGENTS[0];
+    if (!agent) {
+      this.content.innerHTML = "";
+      this.content.appendChild(el("h2", "panel-heading", "干员"));
+      this.content.appendChild(el("p", "panel-description", "暂无干员"));
+      return;
+    }
+    this.selectedAgentId = agent.id;
+    this.content.innerHTML = "";
+    const page = el("div", "agent-page");
+    this.content.appendChild(page);
+    page.appendChild(el("h2", "panel-heading", "干员"));
+    const layout = el("div", "agent-window-layout");
+
+    const stagePanel = el("div", "agent-stage-panel");
+    stagePanel.appendChild(el("div", "agent-stage-title", agent.name));
+    const stage = el("div", "agent-stage");
+    const stageImage = imageEl(`${agent.animationPrefix}01.png`, "agent-stage-image", agent.name);
+    stage.appendChild(stageImage);
+    stagePanel.appendChild(stage);
+    const unlocked = store.isAgentUnlocked(agent.id);
+    stagePanel.appendChild(el("div", "agent-stage-state", unlocked ? "已解锁" : `解锁费用 ${fmtCoin(agent.unlockCost)}`));
+    const primary = el("button", "primary-button agent-primary-button");
+    if (unlocked) {
+      const selected = state.selectedAgents.includes(agent.id);
+      primary.textContent = selected ? "已出战" : "出战";
+      primary.classList.toggle("gold-button", selected);
+      primary.addEventListener("click", () => {
+        const ok = store.toggleAgentSelected(agent.id);
+        if (!ok && state.selectedAgents.length >= 2) toast(this.root, "最多选择两名出战干员", "warning");
+        else toast(this.root, selected ? `${agent.name} 取消出战` : `${agent.name} 已设为出战`, "success");
+        this.render();
+      });
+    } else {
+      primary.textContent = `解锁 · ${fmtCoin(agent.unlockCost)}`;
+      primary.addEventListener("click", () => {
+        if (!store.unlockAgent(agent.id)) {
+          toast(this.root, "哈哈币不足，无法解锁", "warning");
+          return;
+        }
+        AudioManager.play("coin");
+        toast(this.root, `${agent.name} 已解锁`, "success");
+        this.render();
+      });
+    }
+    const actionRow = el("div", "agent-action-row");
+    actionRow.appendChild(primary);
+    if (unlocked) {
+      const agentLevel = store.getAgentLevel(agent.id);
+      const upgradeCost = store.getAgentUpgradeCost(agent.id);
+      const agentUpgrade = el("button", "secondary-button agent-upgrade-button");
+      agentUpgrade.textContent = agentLevel >= agent.maxLevel
+        ? `干员升级 Lv${agentLevel}/${agent.maxLevel} 已满级`
+        : `干员升级 Lv${agentLevel}/${agent.maxLevel} · ${fmtCoin(upgradeCost)}`;
+      agentUpgrade.disabled = agentLevel >= agent.maxLevel || state.coins < upgradeCost;
+      agentUpgrade.addEventListener("click", () => {
+        if (store.upgradeAgent(agent.id)) {
+          AudioManager.play("upgrade");
+          toast(this.root, `${agent.name} 升级成功，召唤冷却已缩短`, "success");
+          this.render();
+        } else {
+          toast(this.root, "哈哈币不足或已满级", "warning");
+        }
+      });
+      actionRow.appendChild(agentUpgrade);
+    }
+    stagePanel.appendChild(actionRow);
+    layout.appendChild(stagePanel);
+
+    const skillPanel = el("div", "agent-skill-panel");
+    skillPanel.appendChild(el("h3", "panel-subheading", "技能升级"));
+    if (!unlocked) {
+      skillPanel.appendChild(el("p", "panel-description", "解锁干员后开放技能升级"));
+    } else {
+      for (const skill of agent.skills) {
+        const skillUnlocked = store.isAgentSkillUnlocked(agent.id, skill.id);
+        const card = el("div", "agent-skill-card");
+        card.appendChild(el("div", "agent-skill-name", skill.name));
+        card.appendChild(el("div", "agent-skill-desc", skill.description));
+        if (!skillUnlocked) {
+          const unlock = el("button", "small-button gold", `解锁技能 ${fmtCoin(skill.unlockCost)}`);
+          unlock.addEventListener("click", () => {
+            if (store.unlockAgentSkill(agent.id, skill.id)) {
+              AudioManager.play("coin");
+              toast(this.root, `${skill.name} 已解锁`, "success");
+              this.render();
+            } else {
+              toast(this.root, "哈哈币不足或已解锁", "warning");
+            }
+          });
+          card.appendChild(unlock);
+        } else {
+          const stateText = skill.initialUnlocked ? "初始技能 · 已解锁" : "已解锁";
+          card.appendChild(el("div", "agent-skill-level", stateText));
+          for (const upgrade of skill.upgrades) {
+            const level = store.getAgentSkillUpgradeLevel(agent.id, skill.id, upgrade.id);
+            const cost = store.getAgentSkillUpgradeCost(agent.id, skill.id, upgrade.id);
+            const row = el("div", "agent-skill-upgrade-row");
+            row.appendChild(el("span", "agent-skill-upgrade-name", `${upgrade.name} Lv${level}/${upgrade.maxLevel}`));
+            row.appendChild(el("p", "agent-skill-desc", upgrade.description));
+            const button = el("button", "small-button gold", level >= upgrade.maxLevel ? "已满级" : `升级 ${fmtCoin(cost)}`);
+            button.disabled = level >= upgrade.maxLevel || state.coins < cost;
+            button.addEventListener("click", () => {
+              if (store.upgradeAgentSkill(agent.id, skill.id, upgrade.id)) {
+                AudioManager.play("upgrade");
+                toast(this.root, `${upgrade.name} 升级成功`, "success");
+                this.render();
+              } else {
+                toast(this.root, "哈哈币不足或已满级", "warning");
+              }
+            });
+            row.appendChild(button);
+            card.appendChild(row);
+          }
+        }
+        skillPanel.appendChild(card);
+      }
+    }
+    layout.appendChild(skillPanel);
+    page.appendChild(layout);
+
+    const selector = el("div", "agent-selector");
+    for (const item of AGENTS) {
+      const unlockedItem = store.isAgentUnlocked(item.id);
+      const cell = el("button", `agent-selector-cell ${this.selectedAgentId === item.id ? "active" : ""} ${unlockedItem ? "" : "locked"}`);
+      cell.appendChild(imageEl(item.avatar, "agent-selector-avatar", item.name));
+      cell.appendChild(el("span", "agent-selector-name", item.name));
+      cell.addEventListener("click", () => {
+        AudioManager.play("click");
+        this.selectedAgentId = item.id;
+        this.render();
+      });
+      selector.appendChild(cell);
+    }
+    page.appendChild(selector);
+    this.startAgentAnimation(agent, stageImage);
+  }
+
+  private startAgentAnimation(agent: AgentConfig, image: HTMLImageElement): void {
+    this.stopAgentAnimation();
+    let index = 0;
+    const tick = () => {
+      if (!image.isConnected) return;
+      image.src = projectAsset(`${agent.animationPrefix}${String(index + 1).padStart(2, "0")}.png`);
+      index = (index + 1) % agent.frameCount;
+      this.agentAnimTimer = window.setTimeout(tick, 1000 / agent.frameRate);
+    };
+    tick();
+  }
+
+  private stopAgentAnimation(): void {
+    if (this.agentAnimTimer !== null) {
+      window.clearTimeout(this.agentAnimTimer);
+      this.agentAnimTimer = null;
+    }
   }
 
   private renderStart(): void {

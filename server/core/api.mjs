@@ -104,6 +104,11 @@ function sanitizeSave(raw) {
     warehouse: Array.isArray(value.warehouse) ? value.warehouse : [],
     buffs: Array.isArray(value.buffs) ? value.buffs : [],
     drawCountThisAffairs: safeNumber(value.drawCountThisAffairs, 0, 0),
+    unlockedAgents: Array.isArray(value.unlockedAgents) ? value.unlockedAgents.filter((id) => typeof id === "string") : [],
+    selectedAgents: Array.isArray(value.selectedAgents) ? value.selectedAgents.filter((id) => typeof id === "string") : [],
+    unlockedAgentSkills: Array.isArray(value.unlockedAgentSkills) ? value.unlockedAgentSkills.filter((id) => typeof id === "string") : [],
+    agentUpgrades: value.agentUpgrades && typeof value.agentUpgrades === "object" ? value.agentUpgrades : {},
+    agentLevels: value.agentLevels && typeof value.agentLevels === "object" ? value.agentLevels : {},
   };
 }
 

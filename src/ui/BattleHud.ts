@@ -21,6 +21,7 @@ export class BattleHud {
   private buffItems!: HTMLElement;
   private renderedBuffSignature = "";
   private extraction!: HTMLElement;
+  private agentHud!: HTMLElement;
   private backpackPanel!: HTMLElement;
   private selectedBagUid: string | null = null;
 
@@ -50,6 +51,7 @@ export class BattleHud {
         </div>
       </div>
       <div class="extraction-chip hidden">撤离点已激活 · F 撤离</div>
+      <div id="agent-hud" class="agent-hud"></div>
       <div class="hud-click-catcher"></div>
     `;
     this.hpFill = this.root.querySelector(".hp-bar .bar-fill")!;
@@ -64,6 +66,7 @@ export class BattleHud {
     this.weaponText = this.root.querySelector(".weapon-value")!;
     this.buffItems = this.root.querySelector(".buff-items")!;
     this.extraction = this.root.querySelector(".extraction-chip")!;
+    this.agentHud = this.root.querySelector("#agent-hud")!;
     this.backpackPanel = el("div", "backpack-panel hidden");
   }
 
@@ -98,6 +101,7 @@ export class BattleHud {
     this.weaponText.textContent = `${equipped.length} 把`;
     this.renderBuffList();
     this.extraction.classList.toggle("hidden", !state.extractionReady);
+    this.renderAgentHud(state.agents);
   }
 
 
@@ -116,6 +120,27 @@ export class BattleHud {
       const item = el("div", `buff-item buff-${config?.category ?? "status"}`);
       item.innerHTML = `<span class="buff-chinese-name">${config?.name ?? stack.id}</span><span class="buff-stack-count">×${stack.stacks}</span>`;
       this.buffItems.appendChild(item);
+    }
+  }
+
+  private renderAgentHud(agents: HudState["agents"]): void {
+    this.agentHud.innerHTML = "";
+    this.agentHud.classList.toggle("hidden", agents.length === 0);
+    for (const agent of agents) {
+      const progress = agent.active
+        ? Math.max(0, Math.min(1, 1 - agent.remaining / agent.total))
+        : agent.ready
+          ? 1
+          : Math.max(0, Math.min(1, 1 - agent.remaining / agent.total));
+      const cell = el("div", `agent-hud-slot ${agent.active ? "active" : agent.ready ? "ready" : "cooling"}`);
+      const ring = el("div", "agent-hud-ring");
+      ring.style.setProperty("--agent-progress", `${progress * 360}deg`);
+      ring.appendChild(imageEl(agent.avatar, "agent-hud-avatar", agent.name));
+      cell.appendChild(ring);
+      cell.appendChild(el("span", "agent-hud-name", agent.name));
+      const status = agent.active ? "出战中" : agent.ready ? "就绪" : "冷却中";
+      cell.appendChild(el("span", "agent-hud-status", status));
+      this.agentHud.appendChild(cell);
     }
   }
 

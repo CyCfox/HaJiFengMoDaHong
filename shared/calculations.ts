@@ -2,7 +2,7 @@ import {
   BUFFS, COLLECTIONS, CONTAINERS, DRAW_BASE_COST, DRAW_FACTOR, HIGH_TIER_RED_IDS, WEAPONS, WEAPON_UPGRADES,
 } from "./balance";
 import type {
-  BuffId, BuffStack, CollectionConfig, ContainerConfig, EnemyConfig, Rarity, WeaponConfig, WeaponInstance, WeaponKind, WeaponUpgradeKey,
+  AgentConfig, AgentSkillConfig, BuffId, BuffStack, CollectionConfig, ContainerConfig, EnemyConfig, Rarity, WeaponConfig, WeaponInstance, WeaponKind, WeaponUpgradeKey,
 } from "./types";
 
 export const floor2 = (value: number): number => Math.max(0, Math.floor(value * 100) / 100);
@@ -128,6 +128,36 @@ export function pickRedCollection(seed: number, container?: ContainerConfig): Co
     if (value < acc) return reds[i];
   }
   return reds[reds.length - 1];
+}
+
+export function getAgentSkillLevel(upgrades: Record<string, number>, agentId: string, skillId: string): number {
+  return Math.max(0, Math.floor(upgrades[`${agentId}:${skillId}`] ?? 0));
+}
+
+export function getAgentUpgradeLevel(upgrades: Record<string, number>, agentId: string, skillId: string, upgradeId: string): number {
+  return Math.max(0, Math.floor(upgrades[`${agentId}:${skillId}:${upgradeId}`] ?? 0));
+}
+
+export function getAgentUpgradeCost(upgrade: { baseCost: number; costIncrement: number }, level: number): number {
+  return Math.round(upgrade.baseCost + level * upgrade.costIncrement);
+}
+
+export function getAgentSkillStats(skill: AgentSkillConfig, upgrades: Record<string, number>, agentId: string, skillId: string): {
+  damageMultiplier: number;
+  cooldown: number;
+  radius: number;
+} {
+  const damageLevel = getAgentUpgradeLevel(upgrades, agentId, skillId, "damage");
+  const intervalLevel = getAgentUpgradeLevel(upgrades, agentId, skillId, "interval");
+  const radiusLevel = getAgentUpgradeLevel(upgrades, agentId, skillId, "radius");
+  const damageUpgrade = skill.upgrades.find((item) => item.id === "damage");
+  const intervalUpgrade = skill.upgrades.find((item) => item.id === "interval");
+  const radiusUpgrade = skill.upgrades.find((item) => item.id === "radius");
+  return {
+    damageMultiplier: 1 + (damageUpgrade?.valuePerLevel ?? 0.2) * damageLevel,
+    cooldown: Math.max(0.6, skill.cooldown - (intervalUpgrade?.valuePerLevel ?? 0.15) * intervalLevel),
+    radius: skill.baseRadius + (radiusUpgrade?.valuePerLevel ?? 10) * radiusLevel,
+  };
 }
 
 export function rollCollection(seed: number, source: "enemy" | "small" | "large", redChanceBonus = 0): CollectionConfig {

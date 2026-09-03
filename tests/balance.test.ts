@@ -18,6 +18,9 @@ describe("enemy composition", () => {
     expect(l11).toEqual({ soldier: 28, shield: 5, rocket: 5, gunner: 5, flamer: 0, boss: 0 });
     expect(l21).toEqual({ soldier: 48, shield: 10, rocket: 10, gunner: 10, flamer: 10, boss: 0 });
     expect(getEnemyComposition(5).some((x) => x.kind === "boss" && x.count === 1)).toBe(true);
+
+
+
   });
 
   it("uses requested enemy multipliers without caps", () => {
@@ -109,7 +112,7 @@ describe("weapon calculations and store behavior", () => {
     const starter = store.getState().ownedWeapons[0];
     expect(store.sellWeapon(starter.id)).toBe(false);
     expect(store.unequipWeapon(starter.id)).toBe(false);
-    store.getState().coins = 1000000;
+    store.getState().coins = 100000000;
     expect(store.buyWeapon("g18")).toBe(true);
     const second = store.getState().ownedWeapons[1];
     expect(store.equipWeapon(second.id)).toBe(true);
@@ -199,6 +202,35 @@ describe("drawing and buffs", () => {
       expect(item.rarity).toBe("red");
       expect(item.slots).toBe(requested.get(item.id));
     }
+  });
+
+  it("unlocks, selects and upgrades agents without breaking persistence state", () => {
+    store.resetRun();
+    store.getState().coins = 100000000;
+    expect(store.unlockAgent("weilong")).toBe(true);
+    expect(store.unlockAgent("weilong")).toBe(false);
+    expect(store.toggleAgentSelected("weilong")).toBe(true);
+    expect(store.getState().selectedAgents).toEqual(["weilong"]);
+    const cost = store.getAgentSkillUpgradeCost("weilong", "c4", "damage");
+    expect(cost).toBe(2000000);
+    expect(cost).toBeGreaterThan(0);
+    expect(store.upgradeAgentSkill("weilong", "c4", "damage")).toBe(true);
+    expect(store.getAgentSkillUpgradeCost("weilong", "c4", "damage")).toBe(4000000);
+    expect(store.getAgentSkillUpgradeLevel("weilong", "c4", "damage")).toBe(1);
+    const agentCost = store.getAgentUpgradeCost("weilong");
+    expect(agentCost).toBe(5000000);
+    expect(store.upgradeAgent("weilong")).toBe(true);
+    expect(store.getAgentLevel("weilong")).toBe(1);
+    expect(store.getAgentSummonCooldown("weilong")).toBe(18);
+    const save = store.serializeSave();
+    expect(save.unlockedAgents).toEqual(["weilong"]);
+    expect(save.selectedAgents).toEqual(["weilong"]);
+    expect(save.agentUpgrades["weilong:c4:damage"]).toBe(1);
+    store.resetRun();
+    expect(store.getState().unlockedAgents).toEqual(["weilong"]);
+    expect(store.getState().agentUpgrades).toEqual({});
+    expect(store.getState().agentLevels).toEqual({});
+    expect(store.getAgentSummonCooldown("weilong")).toBe(20);
   });
 
 });

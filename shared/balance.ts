@@ -1,4 +1,5 @@
 import type {
+  AgentConfig,
   BuffConfig,
   BuffId,
   CollectionConfig,
@@ -52,6 +53,45 @@ export const WEAPON_UPGRADES: Array<{
   { key: "fireRate", label: "射速", growth: 0.05 },
   { key: "damage", label: "伤害", growth: 0.10 },
 ];
+
+export const AGENTS: AgentConfig[] = [
+  {
+    id: "weilong",
+    name: "威虫",
+    avatar: "assets/characters/WeiLong/威虫.png",
+    animationPrefix: "assets/characters/WeiLong/anim/walk/frames/威虫_walk_frame_",
+    frameCount: 9,
+    frameRate: 10,
+    unlockCost: 30000000,
+    upgradeCost: 5000000,
+    upgradeCostIncrement: 5000000,
+    maxLevel: 5,
+    cooldownReductionPerLevel: 2,
+    duration: 12,
+    cooldown: 20,
+    defaultWidth: 72,
+    summonHeight: 110,
+    followDistance: 64,
+    skills: [
+      {
+        id: "c4",
+        name: "C4投掷",
+        description: "向最近敌人投掷C4，到达后爆炸",
+        unlockCost: 10000000,
+        initialUnlocked: true,
+        cooldown: 3,
+        baseRadius: 90,
+        upgrades: [
+          { id: "damage", name: "伤害倍率", description: "每级提升20%伤害倍率", baseCost: 2000000, costIncrement: 2000000, maxLevel: 5, valuePerLevel: 0.2 },
+          { id: "interval", name: "缩短间隔", description: "每级缩短0.15秒投掷间隔", baseCost: 2000000, costIncrement: 2000000, maxLevel: 5, valuePerLevel: 0.15 },
+          { id: "radius", name: "爆炸范围", description: "每级扩大10点爆炸范围与特效尺寸", baseCost: 2000000, costIncrement: 2000000, maxLevel: 5, valuePerLevel: 10 },
+        ],
+      },
+    ],
+  },
+];
+
+export const AGENTS_BY_ID = new Map(AGENTS.map((agent) => [agent.id, agent]));
 
 export const COLLECTIONS: CollectionConfig[] = [
   { id: "maiden_pendant", name: "女郎吊坠", asset: "assets/collections/carton/女郎吊坠.png", rarity: "blue", price: 12000, slots: 2, redWeight: 0 },

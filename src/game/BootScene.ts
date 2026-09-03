@@ -1,8 +1,10 @@
 import Phaser from "phaser";
-import { BUFFS, COLLECTIONS, CONTAINERS, ENEMIES, MAP_ASSET, PLAYER_FRAME_COUNT, PLAYER_FRAME_PREFIX, WEAPONS } from "../../shared/balance";
+import { AGENTS, BUFFS, COLLECTIONS, CONTAINERS, ENEMIES, MAP_ASSET, PLAYER_FRAME_COUNT, PLAYER_FRAME_PREFIX, WEAPONS } from "../../shared/balance";
 import { projectAsset } from "../core/assets";
 import { GameBus } from "../core/EventBus";
 import { createCroppedTexture, sourceBounds, unionBounds } from "./textures";
+import { MAP_WORLD_HEIGHT, MAP_WORLD_WIDTH } from "../../shared/map";
+import { getCollectionLootWidth } from "./objects";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -26,6 +28,16 @@ export class BootScene extends Phaser.Scene {
     this.load.image("container_small", projectAsset(CONTAINERS.small.asset));
     this.load.image("container_large", projectAsset(CONTAINERS.large.asset));
     this.load.image("military_shell", projectAsset("assets/bullets/军用炮弹.png"));
+    this.load.image("c4", projectAsset("assets/bullets/C4.png"));
+    for (const agent of AGENTS) {
+      for (let i = 1; i <= agent.frameCount; i++) {
+        this.load.image(`agent_${agent.id}_${i}`, projectAsset(`${agent.animationPrefix}${String(i).padStart(2, "0")}.png`));
+      }
+    }
+    for (let i = 1; i <= 9; i++) {
+      this.load.image(`c4_boom_${i}`, projectAsset(`assets/effects/C4/frames/C4爆炸特效_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
+    }
+
     for (let i = 1; i <= 9; i++) {
       this.load.image(`boom_${i}`, projectAsset(`assets/effects/boom/frames/爆炸特效_spritesheet_1_frame_${String(i).padStart(2, "0")}.png`));
     }
@@ -41,21 +53,34 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    const textureQualityScale = Math.max(3, Math.ceil((window.devicePixelRatio || 1) * 2));
+    const maximumViewport = Math.max(this.scale.width, this.scale.height, window.innerWidth, window.innerHeight, window.screen.width, window.screen.height);
+    const maximumCameraZoom = Math.max(1, maximumViewport / Math.max(MAP_WORLD_WIDTH, MAP_WORLD_HEIGHT));
+    const textureQualityScale = Math.max(6, Math.ceil(maximumCameraZoom * (window.devicePixelRatio || 1) * 2));
     const frameBounds = Array.from({ length: PLAYER_FRAME_COUNT }, (_, index) => sourceBounds(this, `player_${index + 1}`));
     const playerUnion = unionBounds(frameBounds);
     const enemyWidths: Record<string, number> = { soldier: 34, shield: 46, rocket: 58, gunner: 58, flamer: 52, boss: 64 };
     const weaponWidths: Record<string, number> = { g18: 54, uzi: 70, f12: 96, akm: 82, awm: 96 };
-    const collectionWidths: Record<string, number> = { maiden_pendant: 30 };
     for (let i = 1; i <= PLAYER_FRAME_COUNT; i++) {
       createCroppedTexture(this, `player_${i}`, `crop_player_${i}`, playerUnion, Math.round(64 * textureQualityScale));
     }
     for (const key of Object.keys(ENEMIES)) createCroppedTexture(this, `enemy_${key}`, `crop_enemy_${key}`, undefined, Math.round((enemyWidths[key] ?? 34) * textureQualityScale));
     for (const key of Object.keys(WEAPONS)) createCroppedTexture(this, `weapon_${key}`, `crop_weapon_${key}`, undefined, Math.round((weaponWidths[key] ?? 54) * textureQualityScale));
-    for (const collection of COLLECTIONS) createCroppedTexture(this, `collection_${collection.id}`, `crop_collection_${collection.id}`, undefined, Math.round((collectionWidths[collection.id] ?? 38) * textureQualityScale));
+    for (const collection of COLLECTIONS) createCroppedTexture(this, `collection_${collection.id}`, `crop_collection_${collection.id}`, undefined, Math.round(getCollectionLootWidth(collection) * textureQualityScale));
     createCroppedTexture(this, "container_small", "crop_container_small", undefined, Math.round(44 * textureQualityScale));
     createCroppedTexture(this, "container_large", "crop_container_large", undefined, Math.round(50 * textureQualityScale));
     createCroppedTexture(this, "military_shell", "crop_military_shell", undefined, Math.round(52 * textureQualityScale));
+    createCroppedTexture(this, "c4", "crop_c4", undefined, Math.round(36 * textureQualityScale));
+    for (const agent of AGENTS) {
+      const agentBounds = Array.from({ length: agent.frameCount }, (_, i) => sourceBounds(this, `agent_${agent.id}_${i + 1}`));
+      const agentUnion = unionBounds(agentBounds);
+      for (let i = 1; i <= agent.frameCount; i++) {
+        createCroppedTexture(this, `agent_${agent.id}_${i}`, `crop_agent_${agent.id}_${i}`, agentUnion, Math.round(agent.defaultWidth * textureQualityScale));
+      }
+    }
+    const c4BoomBounds = Array.from({ length: 9 }, (_, i) => sourceBounds(this, `c4_boom_${i + 1}`));
+    const c4BoomUnion = unionBounds(c4BoomBounds);
+    for (let i = 1; i <= 9; i++) createCroppedTexture(this, `c4_boom_${i}`, `crop_c4_boom_${i}`, c4BoomUnion, Math.round(160 * textureQualityScale));
+
     const boomBounds = Array.from({ length: 9 }, (_, i) => sourceBounds(this, `boom_${i + 1}`));
     const boomUnion = unionBounds(boomBounds);
     for (let i = 1; i <= 9; i++) createCroppedTexture(this, `boom_${i}`, `crop_boom_${i}`, boomUnion, Math.round(140 * textureQualityScale));
@@ -104,6 +129,25 @@ export class BootScene extends Phaser.Scene {
         frames: Array.from({ length: 9 }, (_, i) => ({ key: `crop_arrow_${i + 1}` })),
         frameRate: 14,
         repeat: -1,
+      });
+    }
+
+    for (const agent of AGENTS) {
+      if (!this.anims.exists(`agent_${agent.id}_anim`)) {
+        this.anims.create({
+          key: `agent_${agent.id}_anim`,
+          frames: Array.from({ length: agent.frameCount }, (_, i) => ({ key: `crop_agent_${agent.id}_${i + 1}` })),
+          frameRate: agent.frameRate,
+          repeat: -1,
+        });
+      }
+    }
+    if (!this.anims.exists("c4_boom_anim")) {
+      this.anims.create({
+        key: "c4_boom_anim",
+        frames: Array.from({ length: 9 }, (_, i) => ({ key: `crop_c4_boom_${i + 1}` })),
+        frameRate: 18,
+        repeat: 0,
       });
     }
   }

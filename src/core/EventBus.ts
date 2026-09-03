@@ -1,7 +1,17 @@
+export interface AgentHudEntry {
+  id: string;
+  name: string;
+  avatar: string;
+  active: boolean;
+  ready: boolean;
+  remaining: number;
+  total: number;
+}
+
 export type GameEventMap = {
   "run:changed": void;
   "run:start": void;
-  "battle:hud": { hp: number; maxHp: number; armor: number; maxArmor: number; coins: number; level: number; kills: number; extractionReady: boolean; backpackUsed: number; backpackMax: number; loadUsed: number; loadMax: number };
+  "battle:hud": { hp: number; maxHp: number; armor: number; maxArmor: number; coins: number; level: number; kills: number; extractionReady: boolean; backpackUsed: number; backpackMax: number; loadUsed: number; loadMax: number; agents: AgentHudEntry[] };
   "battle:toast": { message: string; tone?: "info" | "success" | "warning" | "danger" };
   "battle:extracted": void;
   "battle:gameover": void;

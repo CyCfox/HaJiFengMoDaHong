@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0f0c" />
+    <title>哈基蜂摸大红 · 局内测试台</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="test-app">
+      <div id="game-container"></div>
+      <aside id="test-panel">
+        <div class="panel-head">
+          <h1>局内测试台</h1>
+          <p>选择武器 / 敌人 / BUFF / 藏品，进入局内场景检查美术和功能。测试模式不会死亡，可反复观察。</p>
+        </div>
+
+        <section class="panel-section">
+          <div class="section-title">
+            <span>装备枪械</span>
+            <span class="section-actions">
+              <button id="weapon-all" type="button">全选</button>
+              <button id="weapon-none" type="button">清空</button>
+            </span>
+          </div>
+          <div id="weapon-options" class="option-grid"></div>
+          <label class="field-row">
+            关卡倍率等级
+            <input id="level-input" type="number" min="1" max="999" value="1" />
+          </label>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title"><span>刷新敌人</span></div>
+          <div class="field-row">
+            <select id="enemy-kind"></select>
+            <input id="enemy-count" type="number" min="1" max="50" value="3" />
+          </div>
+          <div class="button-row">
+            <button id="enemy-spawn" type="button" class="primary">刷新敌人</button>
+            <button id="enemy-clear" type="button" class="ghost">清空敌人</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title"><span>选择 BUFF</span></div>
+          <div id="buff-options" class="option-grid"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title">
+            <span>干员选择</span>
+            <span class="section-actions">
+              <button id="agent-unlock-all" type="button">解锁并全选</button>
+              <button id="agent-clear" type="button">清空</button>
+            </span>
+          </div>
+          <div id="agent-options" class="agent-test-grid"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-title">
+            <span>选择藏品掉落</span>
+            <span class="section-actions">
+              <button id="collection-all" type="button">全选</button>
+              <button id="collection-none" type="button">清空</button>
+            </span>
+          </div>
+          <input id="collection-filter" type="search" placeholder="按名称/ID筛选" />
+          <div id="collection-options" class="option-grid collection-options"></div>
+          <label class="field-row">
+            <input id="collection-pickup" type="checkbox" />
+            允许靠近后拾取（不勾选则只展示，不掉入背包）
+          </label>
+          <div class="button-row">
+            <button id="collection-drop" type="button" class="primary">生成掉落</button>
+            <button id="collection-clear" type="button" class="ghost">清空掉落</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="button-row">
+            <button id="apply-config" type="button" class="primary">应用配置并进入场景</button>
+            <button id="reset-player" type="button" class="ghost">恢复满血</button>
+          </div>
+        </section>
+
+        <div id="test-status" class="status">正在初始化…</div>
+      </aside>
+    </div>
+    <script type="module" src="/src/test/test-main.ts"></script>
+  </body>
+</html>

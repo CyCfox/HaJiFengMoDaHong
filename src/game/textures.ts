@@ -1,5 +1,12 @@
 import Phaser from "phaser";
 
+
+const CONTENT_FRAME = "content";
+
+function nextPowerOfTwo(value: number): number {
+  const safe = Math.max(1, Math.ceil(value));
+  return 2 ** Math.ceil(Math.log2(safe));
+}
 function alphaBounds(image: HTMLImageElement | HTMLCanvasElement): { x: number; y: number; width: number; height: number } {
   const source = image as CanvasImageSource;
   const width = image instanceof HTMLImageElement ? image.naturalWidth : image.width;
@@ -36,19 +43,30 @@ export function createCroppedTexture(
   const texture = scene.textures.get(originalKey);
   const image = texture.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
   const bounds = fixedBounds ?? alphaBounds(image);
+
+  const contentWidth = targetWidth
+    ? Math.min(Math.max(1, Math.round(targetWidth)), Math.max(1, bounds.width))
+    : Math.max(1, bounds.width);
+  const contentHeight = targetWidth
+    ? Math.min(Math.max(1, Math.round(bounds.height * contentWidth / bounds.width)), Math.max(1, bounds.height))
+    : Math.max(1, bounds.height);
+
+  const canvasWidth = nextPowerOfTwo(contentWidth);
+  const canvasHeight = nextPowerOfTwo(contentHeight);
   const canvas = document.createElement("canvas");
-  const outputWidth = targetWidth ? Math.max(1, Math.round(targetWidth)) : bounds.width;
-  const outputHeight = targetWidth
-    ? Math.max(1, Math.round(bounds.height * outputWidth / bounds.width))
-    : bounds.height;
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, outputWidth, outputHeight);
+  const offsetX = Math.floor((canvasWidth - contentWidth) / 2);
+  const offsetY = Math.floor((canvasHeight - contentHeight) / 2);
+  ctx.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height, offsetX, offsetY, contentWidth, contentHeight);
+
   if (scene.textures.exists(targetKey)) scene.textures.remove(targetKey);
-  scene.textures.addCanvas(targetKey, canvas);
+  const created = scene.textures.addCanvas(targetKey, canvas);
+  if (!created) return;
+  created.add(CONTENT_FRAME, 0, offsetX, offsetY, contentWidth, contentHeight);
 }
 
 export function unionBounds(bounds: Array<{ x: number; y: number; width: number; height: number }>): { x: number; y: number; width: number; height: number } {

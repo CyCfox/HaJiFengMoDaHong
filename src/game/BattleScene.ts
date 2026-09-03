@@ -1,22 +1,23 @@
 import Phaser from "phaser";
-import { CONTAINERS, ENEMIES } from "../../shared/balance";
+import { AGENTS_BY_ID, CONTAINERS, ENEMIES } from "../../shared/balance";
 import { MAP_OBSTACLES, MAP_WORLD_HEIGHT, MAP_WORLD_WIDTH, MAP_SPAWN_MARGIN } from "../../shared/map";
-import { getBuffBonus, getEnemyComposition, getEnemyMultipliers, getEquippedWeight, rollCollection } from "../../shared/calculations";
+import { getBuffBonus, getEnemyComposition, getEnemyMultipliers, getEquippedWeight, getWeaponConfig, rollCollection } from "../../shared/calculations";
 import type { BuffStack } from "../../shared/types";
 import { store } from "../core/RunStore";
 import { GameBus } from "../core/EventBus";
 import { AudioManager } from "../audio/AudioManager";
 import { ContainerObject, Loot } from "./objects";
-import { Enemy, Player, Projectile, WeaponMount } from "./entities";
+import { AgentUnit, C4Bomb, Enemy, Player, Projectile, WeaponMount } from "./entities";
 import type { EnemyFireEvent } from "./entities";
 
 const WORLD = MAP_WORLD_WIDTH;
+const STATUS_IMMUNE_SECONDS = 10;
 const MAX_RUNTIME_PELLETS = 24;
 const MAX_PLAYER_PROJECTILES = 320;
 
 export class BattleScene extends Phaser.Scene {
   private player!: Player;
-  private keys!: Record<"W" | "A" | "S" | "D" | "F" | "TAB" | "ESC", Phaser.Input.Keyboard.Key>;
+  private keys!: Record<"W" | "A" | "S" | "D" | "F" | "TAB" | "ESC" | "ONE" | "TWO", Phaser.Input.Keyboard.Key>;
   private enemies: Enemy[] = [];
   private enemyGroup!: Phaser.Physics.Arcade.Group;
   private obstacleGroup!: Phaser.Physics.Arcade.StaticGroup;
@@ -48,14 +49,22 @@ export class BattleScene extends Phaser.Scene {
   private lastExtractionText = "";
   private handleResize = () => this.applyCameraZoom();
   private readonly effectTintToken = 0;
+  private testMode = false;
   private unsubscribeDiscard: (() => void) | null = null;
   private flameSprites = new Map<string, Phaser.GameObjects.Sprite>();
   private fireZones: Array<{ sprite: Phaser.GameObjects.Sprite; x: number; y: number; radius: number; remaining: number; tickTimer: number }> = [];
   private bossSummonTimers = new Map<string, number>();
+  private agents: AgentUnit[] = [];
+  private c4Bombs: C4Bomb[] = [];
+  private agentCooldowns = new Map<string, number>();
   private statusColorToken = 0;
 
   constructor() {
     super("Battle");
+  }
+
+  init(data?: { testMode?: boolean }): void {
+    this.testMode = Boolean(data?.testMode);
   }
 
   create(): void {
@@ -82,6 +91,9 @@ export class BattleScene extends Phaser.Scene {
     this.flameSprites.clear();
     this.fireZones = [];
     this.bossSummonTimers.clear();
+    this.agents = [];
+    this.c4Bombs = [];
+    this.agentCooldowns.clear();
     this.statusColorToken = 0;
     this.deadEnemyIds.clear();
 
@@ -113,20 +125,22 @@ export class BattleScene extends Phaser.Scene {
     this.physics.add.collider(this.enemyGroup, this.enemyGroup);
     this.physics.add.collider(this.player, this.enemyGroup);
 
-    const composition = getEnemyComposition(state.level);
-    for (const item of composition) {
-      this.totalStageEnemies += item.count;
-      for (let i = 0; i < item.count; i++) {
-        this.spawnQueue.push({ kind: item.kind, count: item.count, boss: item.kind === "boss" });
+    if (!this.testMode) {
+      const composition = getEnemyComposition(state.level);
+      for (const item of composition) {
+        this.totalStageEnemies += item.count;
+        for (let i = 0; i < item.count; i++) {
+          this.spawnQueue.push({ kind: item.kind, count: item.count, boss: item.kind === "boss" });
+        }
       }
-    }
     this.spawnQueue.sort((a, b) => Number(a.boss) - Number(b.boss));
+    }
 
     this.createWeaponMounts();
-    this.spawnContainers(state.level);
+    if (!this.testMode) this.spawnContainers(state.level);
 
-    this.keys = this.input.keyboard!.addKeys("W,A,S,D,F,TAB,ESC") as Record<"W" | "A" | "S" | "D" | "F" | "TAB" | "ESC", Phaser.Input.Keyboard.Key>;
-    this.input.keyboard!.addCapture(["W", "A", "S", "D", "F", "TAB", "ESC"]);
+    this.keys = this.input.keyboard!.addKeys("W,A,S,D,F,TAB,ESC,ONE,TWO") as Record<"W" | "A" | "S" | "D" | "F" | "TAB" | "ESC" | "ONE" | "TWO", Phaser.Input.Keyboard.Key>;
+    this.input.keyboard!.addCapture(["W", "A", "S", "D", "F", "TAB", "ESC", "ONE", "TWO"]);
     this.input.keyboard!.on("keydown-ESC", () => {
       if (this.gameEnded) return;
       this.scene.pause();
@@ -152,6 +166,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.gameEnded) return;
     if (Phaser.Input.Keyboard.JustDown(this.keys.F)) this.tryExtractKey();
     if (Phaser.Input.Keyboard.JustDown(this.keys.TAB)) GameBus.emit("battle:toggleBag", undefined);
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ONE)) this.summonAgent(0);
+    if (Phaser.Input.Keyboard.JustDown(this.keys.TWO)) this.summonAgent(1);
 
     const state = store.getState();
     this.player.updatePlayer(delta, {
@@ -180,6 +196,7 @@ export class BattleScene extends Phaser.Scene {
     this.updateFireZones(delta);
     this.updateBossSummons(delta);
     this.updateWeapons(time, delta);
+    this.updateAgents(time, delta);
     this.updateStatuses(delta);
     this.updateProjectiles();
     this.updateLoot(delta, time);
@@ -207,6 +224,57 @@ export class BattleScene extends Phaser.Scene {
     const zoom = Math.max(width / WORLD, height / WORLD);
     this.cameras.main.setZoom(Math.max(0.4, zoom));
   }
+
+  spawnEnemyForTest(kind: string, count = 1): void {
+    if (!this.testMode || !ENEMIES[kind] || count <= 0) return;
+    for (let i = 0; i < Math.min(50, Math.floor(count)); i++) this.spawnEnemy(kind);
+  }
+
+  spawnCollectionsForTest(ids: string[], pickupable = true): void {
+    if (!this.testMode) return;
+    for (const id of ids) {
+      if (pickupable) this.spawnDiscardedItem(id);
+      else this.spawnStaticLootForTest(id);
+    }
+  }
+
+  clearTestLoot(): void {
+    if (!this.testMode) return;
+    for (const loot of [...this.loots]) loot.destroy();
+    this.loots = [];
+    for (const zone of this.fireZones) zone.sprite.destroy();
+    this.fireZones = [];
+  }
+
+  clearTestEnemies(): void {
+    if (!this.testMode || !this.enemyGroup) return;
+    for (const enemy of [...this.enemies]) {
+      this.enemyGroup.remove(enemy, false, false);
+      enemy.destroy();
+    }
+    this.enemies = [];
+    this.spawnQueue = [];
+    this.deadEnemyIds.clear();
+    for (const sprite of this.flameSprites.values()) sprite.destroy();
+    this.flameSprites.clear();
+    for (const zone of this.fireZones) zone.sprite.destroy();
+    this.fireZones = [];
+  }
+
+  resetTestPlayer(): void {
+    if (!this.testMode || !this.player) return;
+    const state = store.getState();
+    state.currentHp = state.maxHp;
+    state.currentArmor = state.maxArmor;
+    this.player.hp = state.maxHp;
+    this.player.armor = state.maxArmor;
+    this.player.syncToStore();
+  }
+
+  summonAgentForTest(slot: number): void {
+    this.summonAgent(slot);
+  }
+
 
   private updateSpawn(delta: number): void {
     this.spawnTimer -= delta / 1000;
@@ -486,6 +554,99 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  private updateAgents(_time: number, delta: number): void {
+    const seconds = delta / 1000;
+    for (const agent of [...this.agents]) {
+      agent.remaining -= seconds;
+      if (agent.skillCooldown > 0) agent.skillCooldown -= seconds;
+      agent.updateFollow(this.player, delta);
+      const skill = agent.config.skills[0];
+      if (skill && agent.skillCooldown <= 0 && this.findNearestEnemy(agent.x, agent.y, WORLD * 2)) {
+        const stats = store.getAgentSkillStats(agent.config.id, skill.id);
+    const damage = this.getPlayerBaseDamageSum() * stats.damageMultiplier;
+        agent.skillCooldown = stats.cooldown;
+        this.throwC4(agent);
+      }
+      if (agent.remaining <= 0) {
+        this.agents = this.agents.filter((item) => item !== agent);
+        this.agentCooldowns.set(agent.config.id, store.getAgentSummonCooldown(agent.config.id));
+        agent.destroy();
+        GameBus.emit("battle:toast", { message: `${agent.config.name} 已撤退，冷却中`, tone: "info" });
+      }
+    }
+    for (const [id, remaining] of [...this.agentCooldowns]) {
+      const next = remaining - seconds;
+      if (next <= 0) this.agentCooldowns.delete(id);
+      else this.agentCooldowns.set(id, next);
+    }
+    for (const bomb of [...this.c4Bombs]) {
+      if (bomb.update(delta)) {
+        this.explodeC4(bomb.x, bomb.y, bomb.radius, bomb.damage);
+        bomb.destroy();
+        this.c4Bombs = this.c4Bombs.filter((item) => item !== bomb);
+      }
+    }
+  }
+
+  private summonAgent(slot: number): void {
+    const selected = store.getState().selectedAgents;
+    const agentId = selected[slot];
+    if (!agentId) return;
+    const agent = AGENTS_BY_ID.get(agentId);
+    if (!agent || !store.isAgentUnlocked(agentId)) return;
+    if (this.agents.length >= 2 || this.agents.some((item) => item.config.id === agentId)) {
+      GameBus.emit("battle:toast", { message: "最多同时出战两名干员", tone: "warning" });
+      return;
+    }
+    const cooldown = this.agentCooldowns.get(agentId) ?? 0;
+    if (cooldown > 0) {
+      GameBus.emit("battle:toast", { message: `${agent.name} 冷却中 ${cooldown.toFixed(1)} 秒`, tone: "warning" });
+      return;
+    }
+    const unit = new AgentUnit(this, this.player.x, this.player.y - agent.summonHeight, agent, slot);
+    const skill = agent.skills[0];
+    this.agents.push(unit);
+    AudioManager.play("start", 0.45);
+    GameBus.emit("battle:toast", { message: `${agent.name} 已召唤`, tone: "success" });
+    this.emitHud();
+  }
+
+  private getPlayerBaseDamageSum(): number {
+    const equipped = store.getState().ownedWeapons.filter((weapon) => weapon.equipped);
+    const total = equipped.reduce((sum, weapon) => sum + getWeaponConfig(weapon.kind).baseDamage, 0);
+    return total > 0 ? total : 100;
+  }
+
+  private throwC4(agent: AgentUnit): void {
+    const skill = agent.config.skills[0];
+    if (!skill) return;
+    const target = this.findNearestEnemy(agent.x, agent.y, WORLD * 2);
+    if (!target) return;
+    const stats = store.getAgentSkillStats(agent.config.id, skill.id);
+    const damage = this.getPlayerBaseDamageSum() * stats.damageMultiplier;
+    const bomb = new C4Bomb(this, agent.x, agent.y, target.x, target.y, 360, damage, stats.radius);
+    this.c4Bombs.push(bomb);
+  }
+
+  private explodeC4(x: number, y: number, radius: number, damage: number): void {
+    for (const enemy of [...this.enemies]) {
+      const distance = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+      if (distance > radius) continue;
+      const falloff = 1 - (distance / radius) * 0.35;
+      enemy.applyDamage(damage * falloff);
+      if (!(enemy.hp > 0)) this.killEnemy(enemy);
+    }
+    const explosion = this.add.sprite(x, y, "crop_c4_boom_1").setDepth(34);
+    const ratio = explosion.height / explosion.width;
+    explosion.setDisplaySize(radius * 2, radius * 2 * ratio);
+    explosion.play("c4_boom_anim");
+    this.time.delayedCall(520, () => explosion.destroy());
+    const ring = this.add.circle(x, y, radius * 0.72, 0xff7b2f, 0.22).setDepth(34);
+    this.tweens.add({ targets: ring, alpha: 0, scale: 1.45, duration: 300, onComplete: () => ring.destroy() });
+    AudioManager.play("explosion", 0.7);
+    this.cameras.main.shake(150, 0.008);
+  }
+
   private damagePlayerByPercent(percent: number): void {
     if (this.gameEnded) return;
     const amount = Math.max(1, Math.ceil(this.player.maxHp * percent));
@@ -513,7 +674,7 @@ export class BattleScene extends Phaser.Scene {
         if (enemy.burnTimer <= 0) {
           enemy.burnTimer = 0;
           enemy.burnStacks = 0;
-          enemy.burnImmuneTimer = 10;
+          enemy.burnImmuneTimer = STATUS_IMMUNE_SECONDS;
         }
       }
       if (enemy.freezeImmuneTimer > 0) enemy.freezeImmuneTimer -= seconds;
@@ -523,14 +684,18 @@ export class BattleScene extends Phaser.Scene {
         if (enemy.freezeTimer <= 0) {
           enemy.freezeTimer = 0;
           enemy.freezeStacks = 0;
-          enemy.freezeImmuneTimer = 10;
+          enemy.freezeImmuneTimer = STATUS_IMMUNE_SECONDS;
           enemy.speedMultiplier = 1;
         }
       }
-      if (enemy.stunTimer <= 0 && enemy.stunImmuneTimer > 0) enemy.stunImmuneTimer -= seconds;
-      if (enemy.stunTimer > 0 && enemy.stunTimer - seconds <= 0) {
-        enemy.stunTimer = 0;
-        enemy.stunImmuneTimer = 10;
+      if (enemy.stunTimer > 0) {
+        enemy.stunTimer -= seconds;
+        if (enemy.stunTimer <= 0) {
+          enemy.stunTimer = 0;
+          enemy.stunImmuneTimer = STATUS_IMMUNE_SECONDS;
+        }
+      } else if (enemy.stunImmuneTimer > 0) {
+        enemy.stunImmuneTimer -= seconds;
       }
       if (enemy.burnTimer > 0 && enemy.freezeTimer > 0) {
         if (enemy.burnStatusToken > enemy.freezeStatusToken) enemy.setTint(0xff3d3d);
@@ -702,6 +867,18 @@ export class BattleScene extends Phaser.Scene {
     this.emitHud();
   }
 
+  private spawnStaticLootForTest(collectionId: string): void {
+    const collection = store.getCollection(collectionId);
+    if (!collection) return;
+    const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.7;
+    const radius = 72 + Math.random() * 40;
+    const rawX = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * radius, MAP_SPAWN_MARGIN, WORLD - MAP_SPAWN_MARGIN);
+    const rawY = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * radius, MAP_SPAWN_MARGIN, WORLD - MAP_SPAWN_MARGIN);
+    const safe = this.findSafeFallback(rawX, rawY, 0, 12);
+    const loot = new Loot(this, safe.x, safe.y, collection, `test-loot-${this.uid++}`, 350, false);
+    this.loots.push(loot);
+  }
+
   private spawnDiscardedItem(collectionId: string): void {
     const collection = store.getCollection(collectionId);
     if (!collection) return;
@@ -808,6 +985,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateExtraction(delta: number): void {
+    if (this.testMode) return;
     this.enemies = this.enemies.filter((enemy) => enemy.active && enemy.hp > 0 && !this.deadEnemyIds.has(enemy.id));
     const plannedEnemiesCleared = this.killCount >= this.totalStageEnemies && this.spawnQueue.length === 0;
     if (plannedEnemiesCleared) this.enemies = [];
@@ -920,6 +1098,15 @@ export class BattleScene extends Phaser.Scene {
     }
   }
   private gameOver(): void {
+    if (this.testMode) {
+      const state = store.getState();
+      state.currentHp = state.maxHp;
+      state.currentArmor = state.maxArmor;
+      this.player.hp = state.maxHp;
+      this.player.armor = state.maxArmor;
+      this.player.syncToStore();
+      return;
+    }
     if (this.gameEnded) return;
     this.gameEnded = true;
     AudioManager.play("gameover", 1.0);
@@ -943,6 +1130,23 @@ export class BattleScene extends Phaser.Scene {
       backpackUsed: store.getBackpackUsed(),
       backpackMax: state.backpackCapacity,
       loadUsed,
+      agents: state.selectedAgents.slice(0, 2).map((agentId) => {
+        const config = AGENTS_BY_ID.get(agentId);
+        const active = this.agents.find((item) => item.config.id === agentId);
+        const cooldown = this.agentCooldowns.get(agentId) ?? 0;
+        const ready = !active && cooldown <= 0;
+        const remaining = active ? active.remaining : cooldown;
+        const total = active ? active.config.duration : store.getAgentSummonCooldown(agentId);
+        return {
+          id: agentId,
+          name: config?.name ?? agentId,
+          avatar: config?.avatar ?? "",
+          active: Boolean(active),
+          ready,
+          remaining: Math.max(0, remaining),
+          total: Math.max(1, total),
+        };
+      }),
       loadMax: state.loadCapacity,
     });
   }

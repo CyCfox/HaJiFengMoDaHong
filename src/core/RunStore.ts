@@ -1,6 +1,6 @@
-import { BUFFS, COLLECTIONS, PLAYER_BASE, WEAPONS } from "../../shared/balance";
+import { AGENTS_BY_ID, BUFFS, COLLECTIONS, PLAYER_BASE, WEAPONS } from "../../shared/balance";
 import {
-  getBuffBonus, getEquippedWeight, getUpgradeCost, getWeaponConfig, getWeaponStats,
+  getAgentSkillStats, getAgentUpgradeCost, getBuffBonus, getEquippedWeight, getUpgradeCost, getWeaponConfig, getWeaponStats,
 } from "../../shared/calculations";
 import type { BuffId, BuffStack, CollectionConfig, InventoryItem, RunState, PlayerSave, WeaponInstance, WeaponKind, WeaponUpgradeKey } from "../../shared/types";
 import { GameBus } from "./EventBus";
@@ -31,6 +31,11 @@ export function createInitialRun(
   collectionValue = calculateRedValue(collectionLevels),
   level = 1,
   clearedLevels = 0,
+  unlockedAgents: string[] = [],
+  selectedAgents: string[] = [],
+  agentUpgrades: Record<string, number> = {},
+  unlockedAgentSkills: string[] = [],
+  agentLevels: Record<string, number> = {},
 ): RunState {
   const starter = createWeaponInstance("g18", 1, true);
   return {
@@ -53,6 +58,11 @@ export function createInitialRun(
     drawCountThisAffairs: 0,
     inAffairs: false,
     clearedLevels,
+    unlockedAgents: [...unlockedAgents],
+    selectedAgents: [...selectedAgents],
+    agentUpgrades: { ...agentUpgrades },
+    unlockedAgentSkills: [...unlockedAgentSkills],
+    agentLevels: { ...agentLevels },
   };
 }
 
@@ -90,6 +100,11 @@ class RunStore {
       warehouse: state.warehouse.map((item) => ({ ...item })),
       buffs: state.buffs.map((buff) => ({ ...buff })),
       drawCountThisAffairs: state.drawCountThisAffairs,
+      unlockedAgents: [...state.unlockedAgents],
+      selectedAgents: [...state.selectedAgents],
+      agentUpgrades: { ...state.agentUpgrades },
+      unlockedAgentSkills: [...state.unlockedAgentSkills],
+      agentLevels: { ...state.agentLevels },
     };
   }
 
@@ -114,6 +129,11 @@ class RunStore {
     this.state.warehouse = next.warehouse.map((item) => ({ ...item }));
     this.state.buffs = next.buffs.map((buff) => ({ ...buff }));
     this.state.drawCountThisAffairs = next.drawCountThisAffairs ?? 0;
+    this.state.unlockedAgents = [...(next.unlockedAgents ?? [])];
+    this.state.selectedAgents = [...(next.selectedAgents ?? [])];
+    this.state.agentUpgrades = { ...(next.agentUpgrades ?? {}) };
+    this.state.unlockedAgentSkills = [...(next.unlockedAgentSkills ?? [])];
+    this.state.agentLevels = { ...(next.agentLevels ?? {}) };
     this.recalcPassiveStats();
     this.state.currentHp = this.state.maxHp;
     this.state.currentArmor = this.state.maxArmor;
@@ -193,6 +213,11 @@ class RunStore {
       this.state.collectionValue,
       1,
       0,
+      this.state.unlockedAgents,
+      this.state.selectedAgents,
+      {},
+      [],
+      {},
     );
     this.recalcPassiveStats();
     this.emit();
@@ -348,6 +373,118 @@ class RunStore {
     this.state.collectionLevels[id] = Math.max(this.getCollectionLevel(id), Math.max(0, Math.floor(nextLevel)));
     this.state.collectionValue = redValue ?? calculateRedValue(this.state.collectionLevels);
     this.emit();
+  }
+
+  isAgentUnlocked(id: string): boolean {
+    return this.state.unlockedAgents.includes(id);
+  }
+
+  unlockAgent(id: string): boolean {
+    const agent = AGENTS_BY_ID.get(id);
+    if (!agent || this.isAgentUnlocked(id) || this.state.coins < agent.unlockCost) return false;
+    this.state.coins -= agent.unlockCost;
+    this.state.unlockedAgents.push(id);
+    this.emit();
+    return true;
+  }
+
+  toggleAgentSelected(id: string): boolean {
+    const agent = AGENTS_BY_ID.get(id);
+    if (!agent || !this.isAgentUnlocked(id)) return false;
+    const current = this.state.selectedAgents;
+    const index = current.indexOf(id);
+    if (index >= 0) {
+      current.splice(index, 1);
+      this.emit();
+      return true;
+    }
+    if (current.length >= 2) return false;
+    current.push(id);
+    this.emit();
+    return true;
+  }
+
+  isAgentSkillUnlocked(agentId: string, skillId: string): boolean {
+    const agent = AGENTS_BY_ID.get(agentId);
+    const skill = agent?.skills.find((item) => item.id === skillId);
+    if (!agent || !skill) return false;
+    return skill.initialUnlocked || this.state.unlockedAgentSkills.includes(`${agentId}:${skillId}`);
+  }
+
+  unlockAgentSkill(agentId: string, skillId: string): boolean {
+    const agent = AGENTS_BY_ID.get(agentId);
+    const skill = agent?.skills.find((item) => item.id === skillId);
+    if (!agent || !skill || skill.initialUnlocked || this.isAgentSkillUnlocked(agentId, skillId)) return false;
+    const key = `${agentId}:${skillId}`;
+    if (this.state.coins < skill.unlockCost) return false;
+    this.state.coins -= skill.unlockCost;
+    this.state.unlockedAgentSkills.push(key);
+    this.emit();
+    return true;
+  }
+
+  getAgentSkillUpgradeLevel(agentId: string, skillId: string, upgradeId: string): number {
+    return Math.max(0, Math.floor(this.state.agentUpgrades[`${agentId}:${skillId}:${upgradeId}`] ?? 0));
+  }
+
+  getAgentSkillUpgradeCost(agentId: string, skillId: string, upgradeId: string): number {
+    const agent = AGENTS_BY_ID.get(agentId);
+    const skill = agent?.skills.find((item) => item.id === skillId);
+    const upgrade = skill?.upgrades.find((item) => item.id === upgradeId);
+    if (!upgrade) return 0;
+    return getAgentUpgradeCost(upgrade, this.getAgentSkillUpgradeLevel(agentId, skillId, upgradeId));
+  }
+
+  getAgentSkillStats(agentId: string, skillId: string): { damageMultiplier: number; cooldown: number; radius: number } {
+    const agent = AGENTS_BY_ID.get(agentId);
+    const skill = agent?.skills.find((item) => item.id === skillId);
+    if (!agent || !skill) return { damageMultiplier: 1, cooldown: 3, radius: 80 };
+    return getAgentSkillStats(skill, this.state.agentUpgrades, agentId, skillId);
+  }
+
+  upgradeAgentSkill(agentId: string, skillId: string, upgradeId: string): boolean {
+    const agent = AGENTS_BY_ID.get(agentId);
+    const skill = agent?.skills.find((item) => item.id === skillId);
+    if (!agent || !skill || !this.isAgentUnlocked(agentId) || !this.isAgentSkillUnlocked(agentId, skillId)) return false;
+    const upgrade = skill.upgrades.find((item) => item.id === upgradeId);
+    if (!upgrade) return false;
+    const level = this.getAgentSkillUpgradeLevel(agentId, skillId, upgradeId);
+    if (level >= upgrade.maxLevel) return false;
+    const cost = this.getAgentSkillUpgradeCost(agentId, skillId, upgradeId);
+    if (this.state.coins < cost) return false;
+    this.state.coins -= cost;
+    this.state.agentUpgrades[`${agentId}:${skillId}:${upgradeId}`] = level + 1;
+    this.emit();
+    return true;
+  }
+
+  getAgentLevel(agentId: string): number {
+    return Math.max(0, Math.floor(this.state.agentLevels[agentId] ?? 0));
+  }
+
+  getAgentUpgradeCost(agentId: string): number {
+    const agent = AGENTS_BY_ID.get(agentId);
+    if (!agent) return 0;
+    return agent.upgradeCost + this.getAgentLevel(agentId) * agent.upgradeCostIncrement;
+  }
+
+  getAgentSummonCooldown(agentId: string): number {
+    const agent = AGENTS_BY_ID.get(agentId);
+    if (!agent) return 20;
+    return Math.max(5, agent.cooldown - this.getAgentLevel(agentId) * agent.cooldownReductionPerLevel);
+  }
+
+  upgradeAgent(agentId: string): boolean {
+    const agent = AGENTS_BY_ID.get(agentId);
+    if (!agent || !this.isAgentUnlocked(agentId)) return false;
+    const level = this.getAgentLevel(agentId);
+    if (level >= agent.maxLevel) return false;
+    const cost = this.getAgentUpgradeCost(agentId);
+    if (this.state.coins < cost) return false;
+    this.state.coins -= cost;
+    this.state.agentLevels[agentId] = level + 1;
+    this.emit();
+    return true;
   }
 
   getBuffStacks(): ReadonlyArray<BuffStack> {

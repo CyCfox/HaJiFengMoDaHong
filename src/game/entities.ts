@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { EnemyConfig, WeaponInstance, WeaponKind } from "../../shared/types";
+import type { AgentConfig, EnemyConfig, WeaponInstance, WeaponKind } from "../../shared/types";
 import { getWeaponConfig, getWeaponStats } from "../../shared/calculations";
 import { DAM_BOTTOM_Y } from "../../shared/map";
 import { store } from "../core/RunStore";
@@ -16,6 +16,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   targetScale = 1;
   respawnArmorTimer = 0;
   private baseWidth = 64;
+  readonly shadow: Phaser.GameObjects.Ellipse;
+  private shadowWidth = 1;
+  private shadowHeight = 1;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "crop_player_1");
@@ -26,6 +29,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setCircle(15, this.displayWidth / 2 - 15, this.displayHeight / 2 - 15);
     body.setCollideWorldBounds(true);
+    this.shadowWidth = this.baseWidth * 1.15;
+    this.shadowHeight = this.baseWidth * 0.36;
+    this.shadow = scene.add.ellipse(this.x, this.y + this.displayHeight * 0.32, this.shadowWidth, this.shadowHeight, 0x000000, 0.34).setDepth(4);
   }
 
   updatePlayer(delta: number, keys: { up: boolean; down: boolean; left: boolean; right: boolean }): void {
@@ -57,6 +63,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const ratio = this.height / this.width;
     this.setDisplaySize(this.baseWidth * (1 + bob), this.baseWidth * (1 + bob) * ratio);
     this.setOrigin(0.5, 0.8);
+    this.shadow.setPosition(this.x, this.y + this.displayHeight * 0.32);
+    this.shadow.setScale(1 + bob, 1 + bob);
   }
 
   setStateFromStore(): void {
@@ -84,6 +92,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.hp <= 0;
   }
 
+
   setTargetScale(scale: number): void {
     this.targetScale = scale;
   }
@@ -93,6 +102,90 @@ export interface EnemyFireEvent {
   enemy: Enemy;
   angle: number;
   distance: number;
+}
+
+export class AgentUnit extends Phaser.GameObjects.Sprite {
+  readonly config: AgentConfig;
+  readonly slot: number;
+  remaining: number;
+  skillCooldown = 0;
+  private followX = 0;
+  private followY = 0;
+  private initialized = false;
+  readonly shadow: Phaser.GameObjects.Ellipse;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, config: AgentConfig, slot: number) {
+    super(scene, x, y, `crop_agent_${config.id}_1`);
+    this.config = config;
+    this.slot = slot;
+    this.remaining = config.duration;
+    scene.add.existing(this);
+    this.setDepth(18);
+    const ratio = this.height / this.width;
+    this.setDisplaySize(config.defaultWidth, config.defaultWidth * ratio);
+    this.play(`agent_${config.id}_anim`, true);
+    const shadowWidth = config.defaultWidth * 1.15;
+    const shadowHeight = config.defaultWidth * 0.3;
+    this.shadow = scene.add.ellipse(x, y + this.displayHeight * 0.32, shadowWidth, shadowHeight, 0x000000, 0.34).setDepth(4);
+    this.followX = x;
+    this.followY = y;
+  }
+
+  updateFollow(player: Player, delta: number): void {
+    const side = this.slot === 0 ? -1 : 1;
+    const targetX = player.x + side * this.config.followDistance;
+    const targetY = player.y + this.config.followDistance * 0.72;
+    const follow = this.initialized ? 1 - Math.exp(-3.2 * (delta / 1000)) : 1;
+    this.followX = Phaser.Math.Linear(this.followX, targetX, follow);
+    this.followY = Phaser.Math.Linear(this.followY, targetY, follow);
+    this.initialized = true;
+    this.setPosition(this.followX, this.followY);
+    this.setFlipX(targetX < this.x);
+    this.shadow.setPosition(this.x, this.y + this.displayHeight * 0.32);
+  }
+  destroy(fromScene?: boolean): void {
+    this.shadow?.destroy();
+    super.destroy(fromScene);
+  }
+}
+
+
+export class C4Bomb extends Phaser.GameObjects.Sprite {
+  readonly targetX: number;
+  readonly targetY: number;
+  readonly speed: number;
+  readonly damage: number;
+  readonly radius: number;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, targetX: number, targetY: number, speed: number, damage: number, radius: number) {
+    super(scene, x, y, "crop_c4");
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.speed = speed;
+    this.damage = damage;
+    this.radius = radius;
+    scene.add.existing(this);
+    this.setDepth(24);
+    const ratio = this.height / this.width;
+    this.setDisplaySize(36, 36 * ratio);
+    this.rotation = Math.random() * Math.PI * 2;
+  }
+
+  update(delta: number): boolean {
+    const seconds = delta / 1000;
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const dist = Math.max(0.001, Math.hypot(dx, dy));
+    const step = this.speed * seconds;
+    if (dist <= step) {
+      this.setPosition(this.targetX, this.targetY);
+      return true;
+    }
+    this.x += (dx / dist) * step;
+    this.y += (dy / dist) * step;
+    this.rotation += delta / 1000 * 8;
+    return false;
+  }
 }
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {

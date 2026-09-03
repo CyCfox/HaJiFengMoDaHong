@@ -316,3 +316,51 @@ img { pointer-events: none; }
   .hud-card { transform: scale(.86); transform-origin: top left; }
   .mission-card, .loadout-card { transform-origin: top right; }
 }
+
+/* Agent special affairs */
+.affairs-content.agent-mode { padding: 14px clamp(18px, 5vw, 52px) 18px; overflow: hidden; }
+.affairs-content.agent-mode .panel-heading { margin: 0 0 8px; font-size: 22px; }
+.agent-page { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 8px; }
+.agent-window-layout { flex: 1; min-height: 260px; max-height: 400px; display: flex; gap: 14px; }
+.agent-stage-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; background: rgba(14,26,17,.72); border: 1px solid var(--line); border-radius: 14px; padding: 12px; overflow: hidden; }
+.agent-stage-title { font-size: 16px; font-weight: 900; margin-bottom: 6px; }
+.agent-stage { flex: 1; min-height: 150px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 42%, rgba(44,74,50,.32), rgba(8,14,9,.1)); border-radius: 12px; }
+.agent-stage-image { max-width: 80%; max-height: 88%; object-fit: contain; filter: drop-shadow(0 10px 18px rgba(0,0,0,.42)); }
+.agent-stage-state { margin: 6px 0; color: var(--muted); text-align: center; font-size: 12px; }
+.agent-primary-button { width: 100%; margin-top: 2px; padding: 9px 16px; }
+.agent-skill-panel { width: 280px; flex: none; min-height: 0; display: flex; flex-direction: column; background: rgba(14,26,17,.72); border: 1px solid var(--line); border-radius: 14px; padding: 12px; overflow-y: auto; }
+.agent-skill-panel h3 { margin: 0 0 10px; font-size: 16px; }
+.agent-skill-card { padding: 8px; margin-bottom: 8px; background: #142319; border: 1px solid #35523d; border-radius: 10px; }
+.agent-skill-name { font-size: 14px; font-weight: 900; }
+.agent-skill-desc { color: var(--muted); font-size: 11px; line-height: 1.45; margin: 4px 0; }
+.agent-skill-level { color: var(--gold); margin-bottom: 5px; font-size: 12px; }
+.agent-skill-upgrade-row { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px; margin-top: 5px; background: #0f1811; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; }
+.agent-skill-upgrade-name { color: #b9dba8; font-size: 12px; font-weight: 700; }
+.agent-skill-upgrade-row .agent-skill-desc { margin: 0; }
+.agent-skill-upgrade-row button { width: 100%; padding: 5px 8px; font-size: 12px; }
+.agent-selector { flex: 0 0 auto; display: flex; gap: 8px; overflow-x: auto; padding: 6px 0 0; }
+.agent-selector-cell { flex: 0 0 86px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; border-radius: 9px; background: #142319; border: 1px solid #35523d; color: var(--text); }
+.agent-selector-cell:hover { border-color: #78c587; }
+.agent-selector-cell.active { border-color: var(--gold); background: #23331f; box-shadow: 0 0 12px rgba(255,213,80,.18); }
+.agent-selector-cell.locked { opacity: .72; }
+.agent-selector-avatar { width: 44px; height: 44px; object-fit: contain; border-radius: 50%; background: #0c1510; border: 2px solid rgba(255,255,255,.12); }
+.agent-selector-name { font-size: 12px; font-weight: 800; }
+/* Battle agent HUD */
+.agent-hud { position: absolute; left: 18px; bottom: 18px; display: flex; gap: 12px; pointer-events: none; }
+.agent-hud-slot { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; padding: 7px 5px; border-radius: 10px; background: rgba(13,23,16,.78); border: 1px solid #6fd38c; backdrop-filter: blur(5px); }
+.agent-hud-slot.active { border-color: #7fe39b; }
+.agent-hud-slot.ready { border-color: #6fd38c; }
+.agent-hud-slot.cooling { border-color: #6fd38c; }
+.agent-hud-ring { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--safe) var(--agent-progress), rgba(255,255,255,.10) 0); box-shadow: 0 0 12px rgba(111,220,143,.15); }
+.agent-hud-avatar { width: 46px; height: 46px; object-fit: contain; border-radius: 50%; background: #0c1510; }
+.agent-hud-name { font-size: 12px; color: #dcebd8; }
+.agent-hud-status { font-size: 10px; color: var(--muted); }
+
+.agent-skill-upgrade-row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px; margin-top: 6px; background: #0f1811; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; }
+.agent-skill-upgrade-name { color: #b9dba8; font-size: 13px; font-weight: 700; }
+.agent-skill-upgrade-row .agent-skill-desc { margin: 0; }
+.agent-skill-upgrade-row button { width: 100%; }
+
+.agent-action-row { display: flex; gap: 8px; width: 100%; margin-top: 2px; }
+.agent-action-row > button { flex: 1; min-width: 0; padding: 9px 10px; font-size: 13px; }
+.agent-upgrade-button { white-space: nowrap; }

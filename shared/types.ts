@@ -59,6 +59,49 @@ export type BuffId =
   | "pellet1" | "pierce1" | "containerExtra" | "redChance"
   | "burn" | "freeze" | "lifesteal2" | "stun";
 
+export type AgentId = "weilong";
+
+export interface AgentSkillUpgradeConfig {
+  id: string;
+  name: string;
+  description: string;
+  baseCost: number;
+  costIncrement: number;
+  maxLevel: number;
+  valuePerLevel: number;
+}
+
+export interface AgentSkillConfig {
+  id: string;
+  name: string;
+  description: string;
+  unlockCost: number;
+  initialUnlocked: boolean;
+  cooldown: number;
+  baseRadius: number;
+  upgrades: AgentSkillUpgradeConfig[];
+}
+
+export interface AgentConfig {
+  id: string;
+  name: string;
+  avatar: string;
+  animationPrefix: string;
+  frameCount: number;
+  frameRate: number;
+  unlockCost: number;
+  upgradeCost: number;
+  upgradeCostIncrement: number;
+  maxLevel: number;
+  cooldownReductionPerLevel: number;
+  duration: number;
+  cooldown: number;
+  defaultWidth: number;
+  summonHeight: number;
+  followDistance: number;
+  skills: AgentSkillConfig[];
+}
+
 export interface BuffConfig {
   id: BuffId;
   name: string;
@@ -107,6 +150,11 @@ export interface PlayerSave {
   warehouse: InventoryItem[];
   buffs: BuffStack[];
   drawCountThisAffairs: number;
+  unlockedAgents: string[];
+  selectedAgents: string[];
+  unlockedAgentSkills: string[];
+  agentUpgrades: Record<string, number>;
+  agentLevels: Record<string, number>;
 }
 
 export interface PlayerProfile {
@@ -147,4 +195,9 @@ export interface RunState {
   drawCountThisAffairs: number;
   inAffairs: boolean;
   clearedLevels: number;
+  unlockedAgents: string[];
+  selectedAgents: string[];
+  unlockedAgentSkills: string[];
+  agentUpgrades: Record<string, number>;
+  agentLevels: Record<string, number>;
 }

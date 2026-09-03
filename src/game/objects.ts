@@ -1,6 +1,23 @@
 import Phaser from "phaser";
 import type { CollectionConfig, ContainerConfig, Rarity } from "../../shared/types";
 
+
+export const COLLECTION_LOOT_WIDTH_BASE = 28;
+export const COLLECTION_LOOT_WIDTH_PER_SLOT = 4;
+
+export const MAIDEN_PENDANT_LOOT_WIDTH = 26;
+export const OX_HORN_LOOT_WIDTH = 54;
+export const MUSKET_EXHIBIT_LOOT_WIDTH = 90;
+export const GOLD_BAR_LOOT_WIDTH = 20;
+
+export function getCollectionLootWidth(collection: Pick<CollectionConfig, "id" | "slots">): number {
+  if (collection.id === "maiden_pendant") return MAIDEN_PENDANT_LOOT_WIDTH;
+  if (collection.id === "ox_horn") return OX_HORN_LOOT_WIDTH;
+  if (collection.id === "musket_exhibit") return MUSKET_EXHIBIT_LOOT_WIDTH;
+  if (collection.id === "gold_bar") return GOLD_BAR_LOOT_WIDTH;
+  return COLLECTION_LOOT_WIDTH_BASE + Math.max(1, collection.slots) * COLLECTION_LOOT_WIDTH_PER_SLOT;
+}
+
 const RARITY_COLORS: Record<Rarity, number> = {
   blue: 0x5ba7ff,
   purple: 0xb983ff,
@@ -18,16 +35,16 @@ export class Loot extends Phaser.GameObjects.Image {
   private readonly glowInner: Phaser.GameObjects.Arc;
   private readonly pickupReadyAt: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, collection: CollectionConfig, uid: string, pickupDelayMs = 350) {
+  constructor(scene: Phaser.Scene, x: number, y: number, collection: CollectionConfig, uid: string, pickupDelayMs = 350, pickupEnabled = true) {
     const dropStartY = y - 52;
     super(scene, x, dropStartY, `crop_collection_${collection.id}`);
     this.collection = collection;
     this.uid = uid;
     this.targetY = y;
-    this.pickupReadyAt = scene.time.now + pickupDelayMs;
+    this.pickupReadyAt = pickupEnabled ? scene.time.now + pickupDelayMs : Number.POSITIVE_INFINITY;
     scene.add.existing(this);
     this.setDepth(8);
-    const lootWidth = collection.id === "maiden_pendant" ? 30 : 38;
+    const lootWidth = getCollectionLootWidth(collection);
     const ratio = this.height / this.width;
     this.setDisplaySize(lootWidth, lootWidth * ratio);
     this.pulseScaleX = this.scaleX;
@@ -56,7 +73,7 @@ export class Loot extends Phaser.GameObjects.Image {
   }
 
   canPickup(time: number): boolean {
-    return time >= this.pickupReadyAt;
+    return Number.isFinite(this.pickupReadyAt) && time >= this.pickupReadyAt;
   }
 
   updateLoot(delta: number, time: number): void {
